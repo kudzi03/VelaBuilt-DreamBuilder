@@ -15,7 +15,8 @@ export const U = {
 
 /** Animated scalars (0..1) the scene layers read each frame. */
 export const channels = {
-  dusk: 0,
+  /** starts at the arrival's twilight so the first frame is already the hero light */
+  dusk: 0.84,
   cut: 1,
   ghost: 0,
   wingLift: 0,

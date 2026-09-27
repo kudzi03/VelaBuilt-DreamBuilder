@@ -381,9 +381,7 @@ export function Kitchen() {
     mats.paint.roughness = cfg.cabinets === "charcoal-slab" ? 0.62 : 0.52;
   }, [cfg.cabinets, mats]);
 
-  useFrame(() => {
-    if (group.current) group.current.visible = channels.wingLift > 0.02 || channels.kitchen > 0.02;
-  });
+  // the kitchen is part of the house now: always there behind the pavilion's glass wall
 
   const handles = style === "shaker" ? mats.handleBrass : mats.handleBlack;
   const counter = mats.counter(cfg.counter);
@@ -392,7 +390,7 @@ export function Kitchen() {
   const sh = { castShadow: true, receiveShadow: true };
 
   return (
-    <group ref={group} name="kitchen" visible={false}>
+    <group ref={group} name="kitchen">
       {/* after */}
       <mesh geometry={geo.floor} material={floorMat} position={[(K.ix0 + K.ix1) / 2, Y0 + 0.004, (K.iz0 + K.iz1 + WALL_OVERLAP) / 2]} receiveShadow />
       <mesh geometry={geo.carcass} material={cabMat} {...sh} />

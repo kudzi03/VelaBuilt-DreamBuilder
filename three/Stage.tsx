@@ -9,15 +9,19 @@ import { TIERS } from "@/lib/quality";
 import { useDemo, type Tier } from "@/lib/store";
 import { Atmosphere } from "./Atmosphere";
 import { CameraRig } from "./CameraRig";
-import { Director } from "./Director";
+import { Director, LampSync } from "./Director";
 // Post-processing is a separate chunk: low-tier devices never download it.
 const Effects = lazy(() => import("./Effects").then((m) => ({ default: m.Effects })));
 import { House } from "./House";
+import { setAnisotropy, setTextureBudget } from "./materials";
 import { setMaxAnisotropy, setTextureScale } from "./proc";
 import { Scenarios } from "./Scenarios";
-import { Site } from "./Site";
+import { Landscape } from "./Landscape";
 
 const DOWN: Record<Tier, Tier> = { high: "medium", medium: "low", low: "low" };
+
+/** Filmic curve for the no-post path; the post path uses the matching ToneMapping effect. */
+const TONE = THREE.AgXToneMapping;
 
 /** Marks the scene ready after a few real frames, then reports load time once. */
 function Ready() {
@@ -25,6 +29,9 @@ function Ready() {
   const done = useRef(false);
   const { gl } = useThree();
   useFrame(() => {
+    // QA harness: count rendered frames (debug only)
+    const w = window as unknown as { __frames?: number };
+    if (w.__frames !== undefined) w.__frames++;
     if (done.current) return;
     frames.current++;
     if (frames.current < 4) return;
@@ -88,6 +95,7 @@ export default function Stage() {
   const tier = useDemo((s) => s.tier);
   const T = TIERS[tier];
   setTextureScale(T.textureSize === 512 ? 0.5 : 1);
+  setTextureBudget(T.textureSize);
 
   return (
     <Canvas
@@ -95,13 +103,14 @@ export default function Stage() {
       shadows={T.shadows ? "soft" : false}
       dpr={T.dpr}
       gl={{ antialias: !T.post, powerPreference: "high-performance", stencil: false, alpha: false }}
-      camera={{ fov: 36, near: 0.4, far: 1400, position: [22, 2, 26] }}
+      camera={{ fov: 36, near: 0.3, far: 2000, position: [22, 2, 26] }}
       onCreated={({ gl, scene, get }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMapping = TONE;
         gl.toneMappingExposure = 1;
-        scene.background = new THREE.Color("#efdcc4");
+        scene.background = new THREE.Color("#1d2230");
         setMaxAnisotropy(gl.capabilities.getMaxAnisotropy());
-        if (location.search.includes("debug")) (window as unknown as { __vb: unknown }).__vb = { gl, scene, THREE, get };
+        setAnisotropy(gl.capabilities.getMaxAnisotropy());
+        if (location.search.includes("debug")) Object.assign(window as unknown as Record<string, unknown>, { __vb: { gl, scene, THREE, get }, __frames: 0 });
       }}
       aria-hidden
     >
@@ -110,11 +119,12 @@ export default function Stage() {
       <Director />
       <Atmosphere />
       <Suspense fallback={null}>
-        <Site />
+        <Landscape />
         <House />
         <Scenarios />
       </Suspense>
       <CameraRig />
+      <LampSync />
       {T.post && (
         <Suspense fallback={null}>
           <Effects />

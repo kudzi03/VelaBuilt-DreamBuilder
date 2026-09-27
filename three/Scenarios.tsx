@@ -12,7 +12,7 @@ import { prefetch } from "./textures";
 
 type Layer = "garden" | "hvac" | "solar" | "steel" | "kitchen";
 const FOR: Record<IndustryId, Layer | null> = { landscaping: "garden", hvac: "hvac", solar: "solar", steel: "steel", remodeling: "kitchen", roofing: null };
-const ORDER: Layer[] = ["hvac", "solar", "steel", "kitchen"];
+const ORDER: Layer[] = ["hvac", "solar", "steel"];
 
 /**
  * Scenario layers mount progressively after the first frame (one per idle slot)
@@ -40,7 +40,8 @@ export function Scenarios() {
 
   // The selected industry's layer mounts immediately, without waiting for its idle slot.
   const selected = industry ? FOR[industry] : null;
-  const has = (l: Layer) => on.has(l) || selected === l;
+  // the kitchen is seen through the pavilion's glass wall from the first frame
+  const has = (l: Layer) => l === "kitchen" || on.has(l) || selected === l;
 
   return (
     <>

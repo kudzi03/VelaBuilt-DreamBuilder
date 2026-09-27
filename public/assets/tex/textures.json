@@ -1,0 +1,684 @@
+{
+ "boucle": {
+  "meters": [
+   0.4,
+   0.4
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   512,
+   256
+  ],
+  "note": "",
+  "mean": [
+   0.2757,
+   0.2693,
+   0.2625
+  ],
+  "bytes": 226644
+ },
+ "brushed_steel": {
+  "meters": [
+   1.0,
+   1.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   512,
+   256
+  ],
+  "note": "",
+  "mean": [
+   0.202,
+   0.2505,
+   0.2911
+  ],
+  "bytes": 5524
+ },
+ "calacatta": {
+  "meters": [
+   1.6,
+   1.6
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.4924,
+   0.4775,
+   0.4911
+  ],
+  "bytes": 2033168
+ },
+ "cedar": {
+  "meters": [
+   1.13,
+   1.13
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.2826,
+   0.1376,
+   0.0778
+  ],
+  "bytes": 502944
+ },
+ "clad_stone": {
+  "meters": [
+   2.4,
+   1.2
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "limestone cladding, 1200x600 panels",
+  "mean": [
+   0.7404,
+   0.5989,
+   0.4104
+  ],
+  "bytes": 393832
+ },
+ "concrete": {
+  "meters": [
+   2.0,
+   2.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.2056,
+   0.1743,
+   0.1188
+  ],
+  "bytes": 1088842
+ },
+ "concrete_polished": {
+  "meters": [
+   1.1,
+   0.55
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.4818,
+   0.4818,
+   0.4818
+  ],
+  "bytes": 1110744
+ },
+ "deck": {
+  "meters": [
+   1.8,
+   1.8
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.167,
+   0.0382,
+   0.0062
+  ],
+  "bytes": 647874
+ },
+ "driveway": {
+  "meters": [
+   1.8,
+   1.8
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.3146,
+   0.1661,
+   0.092
+  ],
+  "bytes": 1307494
+ },
+ "gravel": {
+  "meters": [
+   1.5,
+   1.5
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.2267,
+   0.2141,
+   0.1738
+  ],
+  "bytes": 1602868
+ },
+ "herringbone": {
+  "meters": [
+   3.4,
+   3.4
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.2956,
+   0.164,
+   0.0759
+  ],
+  "bytes": 1717086
+ },
+ "lawn": {
+  "meters": [
+   1.4,
+   1.4
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.0614,
+   0.1107,
+   0.0228
+  ],
+  "bytes": 1809062
+ },
+ "leather": {
+  "meters": [
+   0.6,
+   0.6
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   512,
+   256
+  ],
+  "note": "",
+  "mean": [
+   0.1256,
+   0.0391,
+   0.022
+  ],
+  "bytes": 216334
+ },
+ "linen": {
+  "meters": [
+   0.27,
+   0.27
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   512,
+   256
+  ],
+  "note": "",
+  "mean": [
+   0.7599,
+   0.7599,
+   0.7599
+  ],
+  "bytes": 200096
+ },
+ "meadow": {
+  "meters": [
+   1.4,
+   1.4
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.1297,
+   0.1638,
+   0.0353
+  ],
+  "bytes": 1990162
+ },
+ "nero": {
+  "meters": [
+   1.6,
+   1.6
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.0544,
+   0.0586,
+   0.0564
+  ],
+  "bytes": 1371686
+ },
+ "oak_floor": {
+  "meters": [
+   1.7,
+   1.7
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.2189,
+   0.1185,
+   0.0557
+  ],
+  "bytes": 1464142
+ },
+ "oak_veneer": {
+  "meters": [
+   1.83,
+   1.83
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.3604,
+   0.2119,
+   0.0992
+  ],
+  "bytes": 565036
+ },
+ "old_tiles": {
+  "meters": [
+   3.0,
+   3.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.2045,
+   0.1702,
+   0.1556
+  ],
+  "bytes": 199992
+ },
+ "paver_stone": {
+  "meters": [
+   1.8,
+   1.2
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "limestone pavers 900x600, stack bond",
+  "mean": [
+   0.7072,
+   0.5796,
+   0.4034
+  ],
+  "bytes": 463032
+ },
+ "plaster": {
+  "meters": [
+   2.0,
+   2.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.6891,
+   0.6616,
+   0.6362
+  ],
+  "bytes": 725068
+ },
+ "pool_tile": {
+  "meters": [
+   1.0,
+   1.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.9656,
+   0.9645,
+   0.9626
+  ],
+  "bytes": 119324
+ },
+ "porcelain": {
+  "meters": [
+   1.0,
+   1.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.9656,
+   0.9645,
+   0.9626
+  ],
+  "bytes": 401774
+ },
+ "seam": {
+  "meters": [
+   0.46,
+   1.84
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   512,
+   256
+  ],
+  "note": "standing seam pan; colour/roughness/metal set per finish",
+  "mean": [
+   0.3464,
+   0.3464,
+   0.3464
+  ],
+  "bytes": 3842
+ },
+ "shingle": {
+  "meters": [
+   3.0,
+   3.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "architectural shingles, greyscale, tint with material.color",
+  "mean": [
+   0.2844,
+   0.2844,
+   0.2844
+  ],
+  "bytes": 1231634
+ },
+ "shingle_worn": {
+  "meters": [
+   2.0,
+   2.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "weathered shingles with lichen (before)",
+  "mean": [
+   0.1659,
+   0.138,
+   0.0907
+  ],
+  "bytes": 982790
+ },
+ "slate": {
+  "meters": [
+   3.0,
+   3.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "greyscale, tint with material.color",
+  "mean": [
+   0.3501,
+   0.3501,
+   0.3501
+  ],
+  "bytes": 1120664
+ },
+ "terrazzo": {
+  "meters": [
+   1.0,
+   1.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.6949,
+   0.6506,
+   0.6252
+  ],
+  "bytes": 331516
+ },
+ "tile_roof": {
+  "meters": [
+   2.9,
+   2.9
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "greyscale, tint with material.color",
+  "mean": [
+   0.3534,
+   0.3534,
+   0.3534
+  ],
+  "bytes": 310914
+ },
+ "walnut": {
+  "meters": [
+   1.0,
+   1.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.1709,
+   0.157,
+   0.1422
+  ],
+  "bytes": 1650218
+ },
+ "white_oak": {
+  "meters": [
+   0.5,
+   0.5
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "",
+  "mean": [
+   0.2789,
+   0.1927,
+   0.125
+  ],
+  "bytes": 353328
+ }
+}

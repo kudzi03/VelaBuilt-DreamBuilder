@@ -1,13 +1,15 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty } from "./Atmosphere";
+import { setLampLevels, updateLampViewPositions } from "./lamps";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect } from "react";
 import { channels, fades, U, wipes, type ChannelKey } from "./shared";
 
 /** How fast each channel travels (units per second) — deliberate, not springy. */
 const SPEED: Record<ChannelKey, number> = {
-  dusk: 0.55,
+  dusk: 0.32,
   cut: 0.42,
   ghost: 0.9,
   wingLift: 0.75,
@@ -28,13 +30,26 @@ function approach(cur: number, target: number, speed: number, dt: number) {
   return cur + step;
 }
 
+/**
+ * Time of day per moment (0 golden hour → 1 blue hour). The arrival and the reveal are
+ * twilight shots — warm windows against a darkening sky — the showrooms sit in golden light.
+ */
+function duskFor(phase: string, ind: string | null, evening: boolean) {
+  if (phase === "reveal") return 0.9;
+  if (phase === "intro" || phase === "loading") return 0.84;
+  if (ind === "landscaping") return evening ? 1 : 0.16;
+  if (ind === "remodeling") return 0.5;
+  if (ind === "hvac") return 0.3;
+  return 0.12;
+}
+
 export function targetsFor(): Record<ChannelKey, number> {
   const s = useDemo.getState();
   const reveal = s.phase === "reveal";
   const ind = reveal ? null : s.industry;
   const intro = s.phase === "intro" || s.phase === "loading";
   return {
-    dusk: reveal || (ind === "landscaping" && s.landscaping.evening) ? 1 : 0,
+    dusk: duskFor(s.phase, ind, s.landscaping.evening),
     cut: ind === "steel" || ind === "hvac" ? 0 : 1,
     ghost: ind === "hvac" ? 1 : ind === "steel" && s.steel.ghost ? 0.4 : 0,
     wingLift: ind === "remodeling" ? 1 : 0,
@@ -46,6 +61,24 @@ export function targetsFor(): Record<ChannelKey, number> {
     gardenFocus: ind === "landscaping" ? 1 : 0,
     roof: ind === "roofing" && !intro ? 1 : 0,
   };
+}
+
+/**
+ * Lamp positions follow whichever camera is rendering the scene (the main view, or the
+ * pool's mirrored view) — three calls scene.onBeforeRender at the start of every render.
+ */
+export function LampSync() {
+  const scene = useThree((s) => s.scene);
+  useEffect(() => {
+    scene.onBeforeRender = (_r, _s, camera) => {
+      camera.updateMatrixWorld();
+      updateLampViewPositions(camera);
+    };
+    return () => {
+      scene.onBeforeRender = () => {};
+    };
+  }, [scene]);
+  return null;
 }
 
 export function Director() {
@@ -63,6 +96,16 @@ export function Director() {
       if (channels[k] !== before) moving = true;
     }
     if (moving) markShadowsDirty(2);
+
+    // lamps: rooms come on as the light fades, facade lights after sunset
+    const d = channels.dusk;
+    const sm = (a: number, b: number, x: number) => Math.min(1, Math.max(0, (x - a) / (b - a)));
+    setLampLevels({
+      interior: 0.25 + 0.75 * sm(0.2, 0.6, d),
+      exterior: sm(0.45, 0.75, d),
+      kitchen: Math.max(channels.kitchen, sm(0.3, 0.7, d)),
+      garden: sm(0.55, 0.9, d),
+    });
 
     U.cutY.value = -0.4 + channels.cut * 10.2;
     U.ghost.value = channels.ghost;

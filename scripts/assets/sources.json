@@ -1,0 +1,189 @@
+{
+  "_comment": "Every third-party asset used by the demo. All CC0 1.0. fetch.py downloads raw sources to .cache/assets-src; build scripts write optimised files to public/assets. ASSET_SOURCES.md is generated from this list plus the authors recorded at fetch time.",
+  "hdris": {
+    "qwantani_sunset": {
+      "use": "Golden-hour sky and image-based lighting"
+    },
+    "qwantani_dusk_2": {
+      "use": "Blue-hour sky and image-based lighting"
+    }
+  },
+  "polyhaven_textures": {
+    "japanese_cedar_planks": {
+      "use": "Vertical cedar cladding, soffits"
+    },
+    "roof_slates_02": {
+      "use": "Natural slate roof"
+    },
+    "wood_floor": {
+      "use": "Kitchen floor: wide-plank oak"
+    },
+    "herringbone_parquet": {
+      "use": "Kitchen floor: herringbone oak"
+    },
+    "american_walnut_veneer": {
+      "use": "Cabinets: walnut"
+    },
+    "white_oak_veneer": {
+      "use": "Ceiling slats, dining table, oak cabinets"
+    },
+    "oak_veneer_01": {
+      "use": "Butcher-block worktop, before-kitchen doors"
+    },
+    "floor_tiles_06": {
+      "use": "Before-kitchen dated floor"
+    },
+    "wood_floor_deck": {
+      "use": "Hardwood deck"
+    },
+    "rough_linen": {
+      "use": "Upholstery, curtains"
+    },
+    "bark_brown_02": {
+      "use": "Tree impostor trunks (reference)"
+    },
+    "concrete_floor_02": {
+      "use": "Garage apron, before-garden slab"
+    },
+    "grooved_concrete_driveway": {
+      "use": "Driveway"
+    },
+    "roof_07": {
+      "use": "Weathered shingle roof (before)"
+    }
+  },
+  "ambientcg_textures": {
+    "Travertine009": {
+      "use": "Limestone cladding, terrace and pool coping"
+    },
+    "Marble012": {
+      "use": "Worktop: Calacatta"
+    },
+    "Marble016": {
+      "use": "Worktop: Nero Marquina"
+    },
+    "Concrete034": {
+      "use": "Polished concrete worktop and floor"
+    },
+    "Grass001": {
+      "use": "Lawn"
+    },
+    "Grass004": {
+      "use": "Meadow beyond the lot, before-garden patchy lawn"
+    },
+    "Gravel022": {
+      "use": "Gravel beds and paths"
+    },
+    "RoofingTiles013A": {
+      "use": "Concrete roof tile (charcoal)"
+    },
+    "RoofingTiles012A": {
+      "use": "Concrete roof tile (terracotta)"
+    },
+    "Tiles107": {
+      "use": "Large-format porcelain floor, pool lining"
+    },
+    "Plaster001": {
+      "use": "Interior plaster"
+    },
+    "Terrazzo013": {
+      "use": "Before-kitchen laminate stand-in"
+    },
+    "Metal032": {
+      "use": "Brushed steel (appliances, sink)"
+    },
+    "Fabric061": {
+      "use": "Rug, boucl\u00e9 upholstery"
+    },
+    "Asphalt026C": {
+      "use": "Asphalt granule grain for architectural shingles"
+    },
+    "Leather037": {
+      "use": "Bar stool upholstery"
+    }
+  },
+  "polyhaven_models": {
+    "modern_ceiling_lamp_01": {
+      "use": "Kitchen pendants",
+      "res": "1k"
+    },
+    "potted_plant_01": {
+      "use": "Interior planting",
+      "res": "1k"
+    },
+    "potted_plant_04": {
+      "use": "Worktop succulent",
+      "res": "1k"
+    },
+    "ceramic_vase_01": {
+      "use": "Worktop styling",
+      "res": "1k"
+    },
+    "ceramic_vase_03": {
+      "use": "Worktop styling",
+      "res": "1k"
+    },
+    "wooden_bowl_01": {
+      "use": "Island styling",
+      "res": "1k"
+    },
+    "lemon": {
+      "use": "Fruit bowl",
+      "res": "1k"
+    },
+    "wooden_cutting_board": {
+      "use": "Worktop styling",
+      "res": "1k"
+    },
+    "mid_century_lounge_chair": {
+      "use": "Living room, seen through the glazing",
+      "res": "1k"
+    },
+    "exterior_aircon_unit": {
+      "use": "Heat-pump outdoor unit (HVAC)",
+      "res": "1k"
+    },
+    "modern_coffee_table_01": {
+      "use": "Living room",
+      "res": "1k"
+    },
+    "throw_pillows_01": {
+      "use": "Sofa styling",
+      "res": "1k"
+    }
+  },
+  "polyhaven_trees": {
+    "jacaranda_tree": {
+      "use": "Broadleaf specimen trees (impostors)",
+      "res": "1k"
+    },
+    "fir_tree_01": {
+      "use": "Conifers and forest edge (impostors)",
+      "res": "1k"
+    },
+    "island_tree_02": {
+      "use": "Broadleaf shrubby trees (impostors)",
+      "res": "1k"
+    },
+    "searsia_lucida": {
+      "use": "Large shrubs (impostors)",
+      "res": "1k"
+    },
+    "shrub_02": {
+      "use": "Garden shrubs (impostors)",
+      "res": "1k"
+    },
+    "grass_medium_01": {
+      "use": "Ornamental grasses (impostors)",
+      "res": "1k"
+    },
+    "grass_medium_02": {
+      "use": "Ornamental grasses (impostors)",
+      "res": "1k"
+    },
+    "fern_02": {
+      "use": "Shade planting (impostors)",
+      "res": "1k"
+    }
+  }
+}

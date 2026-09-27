@@ -8,7 +8,7 @@ const config = [
     // created once and mutated in effects/useFrame by design (standard React Three Fiber).
     // The React Compiler is not enabled, so its immutability model does not apply here.
     files: ["three/**/*.{ts,tsx}"],
-    rules: { "react-hooks/immutability": "off" },
+    rules: { "react-hooks/immutability": "off", "react-hooks/preserve-manual-memoization": "off" },
   },
 ];
 

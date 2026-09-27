@@ -15,3 +15,6 @@ npm-debug.log*
 # intermediate renders (final outputs live in public/)
 scripts/og/*.png
 scripts/og/og.html
+
+# raw downloaded asset sources (rebuilt by scripts/assets)
+/.cache/

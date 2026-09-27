@@ -1,6 +1,6 @@
 "use client";
 
-import { Bloom, EffectComposer, N8AO, ToneMapping, Vignette } from "@react-three/postprocessing";
+import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { useFrame } from "@react-three/fiber";
 import { ToneMappingMode, type BloomEffect } from "postprocessing";
 import { useRef } from "react";
@@ -9,9 +9,9 @@ import { useDemo } from "@/lib/store";
 import { channels } from "./shared";
 
 const TONE = (() => {
-  if (typeof window === "undefined") return ToneMappingMode.ACES_FILMIC;
+  if (typeof window === "undefined") return ToneMappingMode.AGX;
   const q = new URLSearchParams(window.location.search).get("tm");
-  return q === "agx" ? ToneMappingMode.AGX : q === "neutral" ? ToneMappingMode.NEUTRAL : ToneMappingMode.ACES_FILMIC;
+  return q === "aces" ? ToneMappingMode.ACES_FILMIC : q === "neutral" ? ToneMappingMode.NEUTRAL : ToneMappingMode.AGX;
 })();
 
 export function Effects() {
@@ -40,6 +40,9 @@ export function Effects() {
       />
       <Bloom ref={bloom} mipmapBlur intensity={0.12} luminanceThreshold={1.25} luminanceSmoothing={0.35} radius={0.72} />
       <ToneMapping mode={TONE} />
+      {/* a photographer's grade on top of the neutral filmic curve: a touch of density and colour */}
+      <HueSaturation saturation={0.14} />
+      <BrightnessContrast contrast={0.07} brightness={-0.01} />
       <Vignette offset={0.32} darkness={0.38} eskil={false} />
     </EffectComposer>
   );

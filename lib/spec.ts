@@ -6,7 +6,7 @@
  * Pure data — no three.js imports so the UI can use it for estimates.
  */
 
-export const WALL = 0.28;
+export const WALL = 0.32;
 export const FLOOR_Y = 0.15; // finished floor above ground
 
 export const MAIN = {
@@ -17,8 +17,8 @@ export const MAIN = {
   eave: 5.9,
   level2: 3.05,
   pitchDeg: 35,
-  eaveOverhang: 0.5,
-  rakeOverhang: 0.35,
+  eaveOverhang: 0.42,
+  rakeOverhang: 0.24,
 } as const;
 
 export const WING = {
@@ -28,8 +28,8 @@ export const WING = {
   z1: -4,
   eave: 3.4,
   pitchDeg: 25,
-  eaveOverhang: 0.45,
-  rakeOverhang: 0.35,
+  eaveOverhang: 0.4,
+  rakeOverhang: 0.24,
 } as const;
 
 const rad = (d: number) => (d * Math.PI) / 180;

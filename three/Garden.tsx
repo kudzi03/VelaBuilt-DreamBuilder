@@ -1,46 +1,47 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
+import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { GARDEN as G, MAIN, WING } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
-import { markShadowsDirty } from "./Atmosphere";
-import { blob, box, merge, type Placed } from "./geom";
-import { concrete, glowTexture, lawn, limestone, patchyYard, plaster, poolTile, rng, waterNormals } from "./proc";
+import { markShadowsDirty, SKY_GLSL, SKY_UNIFORMS } from "./Atmosphere";
+import { box, merge, type Placed } from "./geom";
+import { buildImpostors, type PlantId, type PlantPlacement } from "./impostor";
+import { lampLit, registerLamps, unregisterLamps, updateLampViewPositions, type Lamp } from "./lamps";
+import { sharedGround } from "./Landscape";
+import { pbr, solid } from "./materials";
+import { rng } from "./proc";
 import { channels, lazyCache, patch, U, wipes } from "./shared";
-import { buildTrees, type TreeSpec } from "./Site";
-import { photo } from "./textures";
 
-// The garden is not part of the building: it never takes the section cut.
+/**
+ * The garden behind the kitchen wing: limestone terrace off the glass wall, a steel and
+ * cedar pergola with outdoor seating, a 4 × 8 m pool with travertine coping, planted beds
+ * of photoscanned shrubs and a feature tree — and after dark, lit: pool, path, uplights.
+ * "Before" is a tired lawn and a cracked slab, shown with the before/after wipe.
+ */
+
 const AFTER = { wipe: { side: "after" as const, u: wipes.garden } };
 const BEFORE = { wipe: { side: "before" as const, u: wipes.garden } };
 const P = G.patio;
 const PG = G.pergola;
 const PL = G.pool;
-const POOL_DEPTH = 1.3;
-const WATER_Y = -0.1;
+const POOL_DEPTH = 1.35;
+const WATER_Y = -0.12;
+const COPE = 0.4;
 
-function groundGeometry(withPool: boolean) {
-  const s = new THREE.Shape();
-  s.moveTo(G.x0, -G.z1);
-  s.lineTo(G.x1, -G.z1);
-  s.lineTo(G.x1, -G.z0);
-  s.lineTo(G.x0, -G.z0);
-  s.closePath();
-  if (withPool) {
-    const h = new THREE.Path();
-    h.moveTo(PL.x0, -PL.z1);
-    h.lineTo(PL.x0, -PL.z0);
-    h.lineTo(PL.x1, -PL.z0);
-    h.lineTo(PL.x1, -PL.z1);
-    h.closePath();
-    s.holes.push(h);
-  }
-  const g = new THREE.ShapeGeometry(s);
-  g.rotateX(-Math.PI / 2);
-  return g;
-}
+const GARDEN_LAMPS: Lamp[] = [
+  // pool light, low in the water at the house end
+  { pos: [(PL.x0 + PL.x1) / 2, -0.9, (PL.z0 + PL.z1) / 2 + 1.5], color: "#b9f0ff", power: 14, range: 7.5, group: "garden" },
+  // pergola: warm downlight over the seating
+  { pos: [(PG.x0 + PG.x1) / 2, PG.h - 0.35, (PG.z0 + PG.z1) / 2], color: "#ffbd78", power: 10, range: 6, group: "garden" },
+  // path bollards and tree uplights
+  { pos: [-7.2, 0.45, -5.4], color: "#ffc27f", power: 3, range: 2.4, group: "garden" },
+  { pos: [-10.3, 0.45, -5.4], color: "#ffc27f", power: 3, range: 2.4, group: "garden" },
+  { pos: [-13.6, 0.4, -5.2], color: "#ffc98a", power: 6, range: 5.5, group: "garden" },
+  { pos: [-3.6, 0.4, -14.6], color: "#ffc98a", power: 6, range: 5.5, group: "garden" },
+];
 
 function poolShell(): Placed[] {
   const w = PL.x1 - PL.x0;
@@ -54,6 +55,9 @@ function poolShell(): Placed[] {
     { geo: box(t, POOL_DEPTH, l), pos: [PL.x1 - t / 2, -POOL_DEPTH / 2, cz] },
     { geo: box(w, POOL_DEPTH, t), pos: [cx, -POOL_DEPTH / 2, PL.z0 + t / 2] },
     { geo: box(w, POOL_DEPTH, t), pos: [cx, -POOL_DEPTH / 2, PL.z1 - t / 2] },
+    // entry steps at the house end
+    { geo: box(w - 0.1, 0.3, 0.45), pos: [cx, -0.3, PL.z1 - 0.28] },
+    { geo: box(w - 0.1, 0.3, 0.45), pos: [cx, -0.6, PL.z1 - 0.73] },
   ];
 }
 
@@ -62,162 +66,97 @@ function coping(): Placed[] {
   const l = PL.z1 - PL.z0;
   const cx = (PL.x0 + PL.x1) / 2;
   const cz = (PL.z0 + PL.z1) / 2;
-  const c = 0.34;
-  const h = 0.06;
+  const h = 0.05;
   return [
-    { geo: box(w + 2 * c, h, c), pos: [cx, h / 2, PL.z0 - c / 2] },
-    { geo: box(w + 2 * c, h, c), pos: [cx, h / 2, PL.z1 + c / 2] },
-    { geo: box(c, h, l), pos: [PL.x0 - c / 2, h / 2, cz] },
-    { geo: box(c, h, l), pos: [PL.x1 + c / 2, h / 2, cz] },
+    { geo: box(w + 2 * COPE, h, COPE), pos: [cx, h / 2, PL.z0 - COPE / 2] },
+    { geo: box(w + 2 * COPE, h, COPE), pos: [cx, h / 2, PL.z1 + COPE / 2] },
+    { geo: box(COPE, h, l), pos: [PL.x0 - COPE / 2, h / 2, cz] },
+    { geo: box(COPE, h, l), pos: [PL.x1 + COPE / 2, h / 2, cz] },
   ];
 }
 
-function pergola(): { frame: Placed[]; bulbs: THREE.Vector3[] } {
-  const frame: Placed[] = [];
-  const s = 0.12;
+function pergola(): { steel: Placed[]; timber: Placed[] } {
+  const steel: Placed[] = [];
+  const timber: Placed[] = [];
+  const s = 0.1;
   const h = PG.h;
-  for (const x of [PG.x0, PG.x1]) for (const z of [PG.z0, PG.z1]) frame.push({ geo: box(s, h, s), pos: [x, h / 2, z] });
-  for (const x of [PG.x0, PG.x1]) frame.push({ geo: box(0.1, 0.24, PG.z1 - PG.z0 + 0.5), pos: [x, h - 0.12, (PG.z0 + PG.z1) / 2] });
-  for (const z of [PG.z0, PG.z1]) frame.push({ geo: box(PG.x1 - PG.x0 + 0.3, 0.2, 0.1), pos: [(PG.x0 + PG.x1) / 2, h - 0.1, z] });
-  for (let z = PG.z0 + 0.25; z < PG.z1 - 0.1; z += 0.32) frame.push({ geo: box(PG.x1 - PG.x0 + 0.4, 0.16, 0.05), pos: [(PG.x0 + PG.x1) / 2, h + 0.06, z] });
-  // festoon lights: three catenaries across
-  const bulbs: THREE.Vector3[] = [];
-  for (const z of [PG.z0 + 0.8, (PG.z0 + PG.z1) / 2, PG.z1 - 0.8]) {
-    const n = 12;
-    for (let i = 0; i <= n; i++) {
-      const f = i / n;
-      const x = PG.x0 + 0.1 + f * (PG.x1 - PG.x0 - 0.2);
-      bulbs.push(new THREE.Vector3(x, h - 0.28 - Math.sin(f * Math.PI) * 0.32, z));
-    }
-  }
-  return { frame, bulbs };
+  for (const x of [PG.x0, PG.x1]) for (const z of [PG.z0, PG.z1]) steel.push({ geo: box(s, h, s), pos: [x, h / 2, z] });
+  for (const z of [PG.z0, PG.z1]) steel.push({ geo: box(PG.x1 - PG.x0 + s, 0.22, s), pos: [(PG.x0 + PG.x1) / 2, h - 0.11, z] });
+  for (const x of [PG.x0, PG.x1]) steel.push({ geo: box(s, 0.22, PG.z1 - PG.z0 + s), pos: [x, h - 0.11, (PG.z0 + PG.z1) / 2] });
+  // cedar louvres across the top
+  for (let x = PG.x0 + 0.12; x < PG.x1 - 0.05; x += 0.2) timber.push({ geo: box(0.05, 0.16, PG.z1 - PG.z0 - 0.02), pos: [x, h - 0.02, (PG.z0 + PG.z1) / 2] });
+  return { steel, timber };
 }
 
-function furniture(): { fabric: Placed[]; dark: Placed[]; wood: Placed[] } {
+/** Low teak-framed sofa, chairs and table under the pergola; two loungers by the pool. */
+function outdoorFurniture() {
+  const teak: Placed[] = [];
+  const cushion: Placed[] = [];
+  const stone: Placed[] = [];
   const cx = (PG.x0 + PG.x1) / 2;
   const cz = (PG.z0 + PG.z1) / 2;
-  const fabric: Placed[] = [
-    // L sofa
-    { geo: box(2.4, 0.42, 0.85), pos: [cx - 0.2, 0.21 + 0.05, PG.z0 + 0.75] },
-    { geo: box(2.4, 0.4, 0.2), pos: [cx - 0.2, 0.55, PG.z0 + 0.42] },
-    { geo: box(0.85, 0.42, 1.6), pos: [PG.x0 + 0.75, 0.26, PG.z0 + 1.95] },
-    { geo: box(0.2, 0.4, 1.6), pos: [PG.x0 + 0.42, 0.55, PG.z0 + 1.95] },
-    // lounge chairs
-    { geo: box(0.8, 0.4, 0.8), pos: [cx + 1.4, 0.25, cz + 1.2] },
-    { geo: box(0.8, 0.4, 0.8), pos: [cx + 1.4, 0.25, cz + 0.2] },
-  ];
-  const dark: Placed[] = [{ geo: box(1.1, 0.36, 0.7), pos: [cx - 0.1, 0.18 + 0.05, cz + 0.4] }];
-  // pool loungers
-  const wood: Placed[] = [];
-  for (const z of [PL.z0 + 2.4, PL.z0 + 4]) {
-    wood.push({ geo: box(0.7, 0.28, 1.9), pos: [PL.x1 + 1.05, 0.14, z] });
-    wood.push({ geo: box(0.7, 0.12, 0.7), pos: [PL.x1 + 1.05, 0.42, z - 0.7], rot: [-0.55, 0, 0] });
-  }
-  return { fabric, dark, wood };
-}
-
-interface Plant {
-  x: number;
-  z: number;
-  r: number;
-  kind: "shrub" | "grass" | "perennial";
-  lush: boolean;
-}
-
-function plants(): Plant[] {
-  const r = rng(12);
-  const out: Plant[] = [];
-  const bed = (x0: number, z0: number, x1: number, z1: number, n: number) => {
-    for (let i = 0; i < n; i++) {
-      const f = (i + 0.5) / n;
-      const x = x0 + (x1 - x0) * f + (r() - 0.5) * 0.5;
-      const z = z0 + (z1 - z0) * f + (r() - 0.5) * 0.5;
-      const k = r();
-      out.push({ x, z, r: 0.35 + r() * 0.35, kind: k < 0.45 ? "shrub" : k < 0.8 ? "grass" : "perennial", lush: i % 3 !== 0 });
-    }
+  const sofa = (x: number, z: number, len: number, rotY: number) => {
+    const m = new THREE.Matrix4().makeRotationY(rotY).setPosition(x, 0, z);
+    const at = (g: THREE.BufferGeometry, px: number, py: number, pz: number, into: Placed[]) => into.push({ geo: g, matrix: m.clone().multiply(new THREE.Matrix4().makeTranslation(px, py, pz)) });
+    at(box(len, 0.1, 0.86), 0, 0.2, 0, teak);
+    at(box(len, 0.36, 0.08), 0, 0.42, 0.39, teak);
+    for (const sx of [-1, 1]) at(box(0.06, 0.2, 0.86), (sx * len) / 2, 0.1, 0, teak);
+    at(box(len - 0.08, 0.14, 0.74), 0, 0.32, -0.03, cushion);
+    at(box(len - 0.1, 0.36, 0.16), 0, 0.56, 0.3, cushion);
   };
-  bed(G.x0 + 0.8, G.z0 + 0.9, G.x1 - 1.2, G.z0 + 0.9, 18); // back wall
-  bed(G.x0 + 0.85, G.z0 + 2, G.x0 + 0.85, G.z1 - 1.8, 13); // west wall
-  bed(P.x0 - 0.5, P.z0 - 0.4, P.x0 - 0.5, P.z0 - 0.4, 1);
-  for (const [x, z] of [
-    [PG.x0 - 0.45, PG.z1 + 0.5],
-    [PG.x0 - 0.45, PG.z0 - 0.5],
-    [P.x0 + 0.4, P.z1 - 0.5],
-  ])
-    out.push({ x, z, r: 0.5, kind: "shrub", lush: false });
-  return out;
-}
-
-const SHRUB = ["#6f7f55", "#5f7249", "#7d8b5f", "#8a9468"].map((c) => new THREE.Color(c));
-const PERENNIAL = ["#8e7aa0", "#b7a0c4", "#c9b27a", "#9aa874"].map((c) => new THREE.Color(c));
-const GRASS = new THREE.Color("#b3aa7a");
-
-function plantGeometry(list: Plant[]): THREE.BufferGeometry {
-  const r = rng(5);
-  const parts: THREE.BufferGeometry[] = [];
-  list.forEach((p, i) => {
-    let g: THREE.BufferGeometry;
-    let col: THREE.Color;
-    if (p.kind === "grass") {
-      g = new THREE.ConeGeometry(p.r * 0.75, p.r * 2.1, 7, 1, true);
-      g.translate(p.x, p.r * 1.05, p.z);
-      col = GRASS.clone().multiplyScalar(0.9 + r() * 0.2);
-    } else if (p.kind === "perennial") {
-      g = blob(p.r * 0.8, i + 3, 2, 0.6, 0.12);
-      g.translate(p.x, p.r * 0.45, p.z);
-      col = PERENNIAL[i % PERENNIAL.length].clone();
-    } else {
-      g = blob(p.r, i + 11, 2, 0.8, 0.1);
-      g.translate(p.x, p.r * 0.7, p.z);
-      col = SHRUB[i % SHRUB.length].clone();
-    }
-    const nonIdx = g.index ? g.toNonIndexed() : g;
-    const count = nonIdx.attributes.position.count;
-    const c = new Float32Array(count * 3);
-    for (let k = 0; k < count; k++) {
-      const y = nonIdx.attributes.position.getY(k);
-      const shade = 0.7 + 0.3 * Math.min(1, y / (p.r * 1.4));
-      c[k * 3] = col.r * shade;
-      c[k * 3 + 1] = col.g * shade;
-      c[k * 3 + 2] = col.b * shade;
-    }
-    nonIdx.setAttribute("color", new THREE.BufferAttribute(c, 3));
-    if (nonIdx.attributes.uv) nonIdx.deleteAttribute("uv");
-    parts.push(nonIdx);
-  });
-  const P3: number[] = [];
-  const N3: number[] = [];
-  const C3: number[] = [];
-  for (const g of parts) {
-    P3.push(...(g.attributes.position.array as Float32Array));
-    N3.push(...(g.attributes.normal.array as Float32Array));
-    C3.push(...(g.attributes.color.array as Float32Array));
-    g.dispose();
+  sofa(cx - 0.1, PG.z0 + 0.72, 2.6, 0);
+  sofa(PG.x0 + 0.62, cz + 0.4, 1.6, Math.PI / 2);
+  stone.push({ geo: box(1.1, 0.06, 0.7), pos: [cx - 0.05, 0.36, cz + 0.2] });
+  teak.push({ geo: box(0.9, 0.3, 0.5), pos: [cx - 0.05, 0.18, cz + 0.2] });
+  for (const z of [PL.z0 + 2.2, PL.z0 + 3.7]) {
+    const x = PL.x1 + COPE + 0.75;
+    teak.push({ geo: box(0.72, 0.08, 1.95), pos: [x, 0.3, z] });
+    for (const [dx, dz] of [[-0.3, -0.85], [0.3, -0.85], [-0.3, 0.85], [0.3, 0.85]]) teak.push({ geo: box(0.05, 0.28, 0.05), pos: [x + dx, 0.14, z + dz] });
+    cushion.push({ geo: box(0.68, 0.07, 1.3), pos: [x, 0.37, z + 0.3] });
+    cushion.push({ geo: box(0.68, 0.07, 0.62), matrix: new THREE.Matrix4().makeRotationX(-0.6).setPosition(x, 0.52, z - 0.62) });
   }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute("position", new THREE.Float32BufferAttribute(P3, 3));
-  out.setAttribute("normal", new THREE.Float32BufferAttribute(N3, 3));
-  out.setAttribute("color", new THREE.Float32BufferAttribute(C3, 3));
-  return out;
+  return { teak, cushion, stone };
 }
 
-const CORE_TREES: TreeSpec[] = [
-  { x: -11.6, z: -15.8, kind: "column", s: 0.85 },
-  { x: -8.2, z: -15.9, kind: "column", s: 0.95 },
-  { x: -5.2, z: -15.8, kind: "column", s: 0.85 },
-];
-const LUSH_TREES: TreeSpec[] = [
-  { x: -3.2, z: -14.9, kind: "multi", s: 0.95 },
-];
+interface GardenPlants {
+  core: Record<string, PlantPlacement[]>;
+  lush: Record<string, PlantPlacement[]>;
+}
+
+function planting(): GardenPlants {
+  const r = rng(41);
+  const J = (a: number) => (r() - 0.5) * a;
+  const core: Record<string, PlantPlacement[]> = { searsia_a: [], searsia_b: [], searsia_c: [], searsia_d: [], island: [] };
+  const lush: Record<string, PlantPlacement[]> = { searsia_a: [], searsia_b: [], searsia_c: [], searsia_d: [], shrub_a: [], shrub_d: [], jacaranda: [] };
+  const kinds = ["searsia_a", "searsia_b", "searsia_c", "searsia_d"];
+  // back boundary bed, behind the terrace and pool (the south-west corner stays open: the view)
+  for (let i = 0; i < 9; i++) {
+    const x = -9.2 + i * 0.95 + J(0.4);
+    const z = G.z0 + 0.9 + J(0.6);
+    (i % 2 ? core : lush)[kinds[i % 4]].push({ x, z, height: 1.3 + r() * 0.9, tone: J(0.3) });
+  }
+  // north-west bed along the garden's edge by the house
+  for (let i = 0; i < 6; i++) {
+    const x = G.x0 + 0.7 + J(0.5);
+    const z = -4.8 - i * 1.05 + J(0.4);
+    (i % 2 ? core : lush)[kinds[(i + 1) % 4]].push({ x, z, height: 1.2 + r() * 1.0, tone: J(0.3) });
+  }
+  // feature tree at the pavilion's far corner; a larger tree framing the north-west
+  core.island.push({ x: -5.2, z: -15.3, height: 4.4, yaw: 0.8 });
+  lush.jacaranda.push({ x: -16.5, z: 0.5, height: 9 });
+  // low planting along the pool's far side and the terrace edge
+  for (let i = 0; i < 7; i++) lush.shrub_a.push({ x: PL.x0 - 1.1 + J(0.2), z: PL.z0 + 0.6 + i * 1.15 + J(0.3), height: 0.7 + r() * 0.3 });
+  for (let i = 0; i < 5; i++) lush.searsia_d.push({ x: P.x0 - 0.55 + J(0.2), z: P.z0 + 0.8 + i * 1.6 + J(0.3), height: 0.7 + r() * 0.25, tone: J(0.2) });
+  return { core, lush };
+}
 
 const STONES: Array<[number, number]> = [
-  [-7.2, -5.4],
-  [-8.1, -5.3],
-  [-9.0, -5.45],
-  [-9.9, -5.35],
-  [-10.8, -5.45],
-  [-11.7, -5.35],
-  [-12.6, -5.45],
+  [-7.4, -5.2],
+  [-8.3, -5.1],
+  [-9.2, -5.25],
+  [-10.1, -5.15],
+  [-11.0, -5.25],
+  [-11.9, -5.15],
 ];
 
 export function Garden() {
@@ -226,147 +165,169 @@ export function Garden() {
   const industry = useDemo((s) => s.industry);
   const phase = useDemo((s) => s.phase);
   const tier = useDemo((s) => s.tier);
+  const hi = tier !== "low";
   const beforeOn = compare && industry === "landscaping" && phase === "explore";
-  // the kitchen cutaway is viewed through where the pergola stands
-  const showPergola = c.pergola && !(industry === "remodeling" && phase !== "reveal" && phase !== "intro");
   const lights = useRef<THREE.Group>(null);
-  const pointLight = useRef<THREE.PointLight>(null);
 
   useEffect(() => markShadowsDirty(4), [c.surface, c.pergola, c.pool, c.planting, industry]);
+  useEffect(() => {
+    registerLamps(GARDEN_LAMPS);
+    return () => unregisterLamps(GARDEN_LAMPS);
+  }, []);
 
   const geo = useMemo(() => {
     const pg = pergola();
-    const fu = furniture();
-    const pl = plants();
-    const trees = buildTrees(CORE_TREES, 21);
-    const lushTrees = buildTrees(LUSH_TREES, 23);
-    const deck = box(P.x1 - P.x0, 0.18, P.z1 - P.z0);
-    deck.translate((P.x0 + P.x1) / 2, 0.09, (P.z0 + P.z1) / 2);
-    const stone = box(P.x1 - P.x0, 0.05, P.z1 - P.z0);
-    stone.translate((P.x0 + P.x1) / 2, 0.025, (P.z0 + P.z1) / 2);
-    const water = new THREE.PlaneGeometry(PL.x1 - PL.x0, PL.z1 - PL.z0);
+    const fu = outdoorFurniture();
+    const deck = box(P.x1 - P.x0, 0.16, P.z1 - P.z0);
+    deck.translate((P.x0 + P.x1) / 2, 0.08, (P.z0 + P.z1) / 2);
+    const stone = box(P.x1 - P.x0, 0.06, P.z1 - P.z0);
+    stone.translate((P.x0 + P.x1) / 2, 0.03, (P.z0 + P.z1) / 2);
+    const water = new THREE.PlaneGeometry(PL.x1 - PL.x0, PL.z1 - PL.z0, 1, 1);
     water.rotateX(-Math.PI / 2);
     water.translate((PL.x0 + PL.x1) / 2, WATER_Y, (PL.z0 + PL.z1) / 2);
     const wu = water.attributes.uv as THREE.BufferAttribute;
     for (let i = 0; i < wu.count; i++) wu.setXY(i, wu.getX(i) * (PL.x1 - PL.x0), wu.getY(i) * (PL.z1 - PL.z0));
-    const walls: Placed[] = [
-      { geo: box(0.25, G.wallH, G.z1 - G.z0 + 0.25), pos: [G.x0 - 0.125, G.wallH / 2, (G.z0 + G.z1) / 2] },
-      { geo: box(G.x1 - G.x0 + 7.25, G.wallH, 0.25), pos: [(G.x0 + G.x1 + 7) / 2, G.wallH / 2, G.z0 - 0.125] },
-      { geo: box(0.32, 0.06, G.z1 - G.z0 + 0.3), pos: [G.x0 - 0.125, G.wallH + 0.03, (G.z0 + G.z1) / 2] },
-      { geo: box(G.x1 - G.x0 + 7.3, 0.06, 0.32), pos: [(G.x0 + G.x1 + 7) / 2, G.wallH + 0.03, G.z0 - 0.125] },
-    ];
+    // lawn plug for the pool opening in the ground (no pool / before)
+    const plug = new THREE.PlaneGeometry(PL.x1 - PL.x0, PL.z1 - PL.z0);
+    plug.rotateX(-Math.PI / 2);
+    plug.translate((PL.x0 + PL.x1) / 2, -0.005, (PL.z0 + PL.z1) / 2);
     const bollards: Placed[] = [];
-    const pools: THREE.Vector3[] = [];
+    const bollardTops: Placed[] = [];
     STONES.forEach(([x, z], i) => {
-      if (i % 2 === 0) {
-        bollards.push({ geo: new THREE.CylinderGeometry(0.045, 0.05, 0.55, 10), pos: [x, 0.275, z + 0.75] });
-        pools.push(new THREE.Vector3(x, 0.02, z + 0.75));
+      if (i % 3 === 0) {
+        bollards.push({ geo: new THREE.CylinderGeometry(0.05, 0.05, 0.5, 16), pos: [x, 0.25, z + 0.75] });
+        bollardTops.push({ geo: new THREE.CylinderGeometry(0.047, 0.047, 0.05, 16), pos: [x, 0.47, z + 0.75] });
       }
     });
-    for (const t of CORE_TREES) pools.push(new THREE.Vector3(t.x, 0.02, t.z + 0.6));
-    const bollardTops: Placed[] = bollards.map((b) => ({ geo: new THREE.CylinderGeometry(0.05, 0.05, 0.06, 10), pos: [b.pos![0], 0.52, b.pos![2]] }));
+    const beforeGround = new THREE.PlaneGeometry(G.x1 - G.x0, G.z1 - G.z0);
+    beforeGround.rotateX(-Math.PI / 2);
+    beforeGround.translate((G.x0 + G.x1) / 2, 0.006, (G.z0 + G.z1) / 2);
+    const bu = beforeGround.attributes.uv as THREE.BufferAttribute;
+    for (let i = 0; i < bu.count; i++) bu.setXY(i, bu.getX(i) * (G.x1 - G.x0), bu.getY(i) * (G.z1 - G.z0));
     return {
-      lawnPool: groundGeometry(true),
-      lawnFull: groundGeometry(false),
       deck,
       stone,
       water,
+      plug,
       shell: merge(poolShell()),
       coping: merge(coping()),
-      pergola: merge(pg.frame),
-      bulbs: pg.bulbs,
-      fabric: merge(fu.fabric),
-      dark: merge(fu.dark),
-      wood: merge(fu.wood),
-      plantsCore: plantGeometry(pl.filter((p) => !p.lush)),
-      plantsLush: plantGeometry(pl.filter((p) => p.lush)),
-      trees,
-      lushTrees,
-      walls: merge(walls),
-      stones: merge(STONES.map(([x, z]) => ({ geo: box(0.62, 0.05, 0.42), pos: [x, 0.025, z] }))),
-      slab: (() => {
-        const g = box(3.2, 0.1, 3.0);
-        g.translate(-2.6, 0.05, -7.4);
-        return g;
-      })(),
+      steel: merge(pg.steel),
+      timber: merge(pg.timber),
+      teak: merge(fu.teak),
+      cushion: merge(fu.cushion),
+      tableTop: merge(fu.stone),
+      stones: merge(STONES.map(([x, z]) => ({ geo: box(0.7, 0.05, 0.45), pos: [x, 0.025, z] }))),
       bollards: merge(bollards),
       bollardTops: merge(bollardTops),
-      pools,
+      beforeGround,
+      slab: (() => {
+        const g = box(4.6, 0.1, 4.2);
+        g.translate(-3.4, 0.05, -6.6);
+        return g;
+      })(),
     };
   }, []);
 
+  const plants = useMemo(() => {
+    const pl = planting();
+    const build = (rec: Record<string, PlantPlacement[]>) => Object.entries(rec).filter(([, l]) => l.length).map(([id, l]) => buildImpostors(id as PlantId, l, hi));
+    return { core: build(pl.core), lush: build(pl.lush) };
+  }, [hi]);
+  useEffect(
+    () => () =>
+      [...plants.core, ...plants.lush].forEach((m) => {
+        m.geometry.dispose();
+        (m.material as THREE.Material).dispose();
+        m.customDepthMaterial?.dispose();
+      }),
+    [plants],
+  );
+
   const lazy = useMemo(() => lazyCache<THREE.Material>(), []);
   const mats = useMemo(() => {
-    const lw = lawn();
-    const pl = plaster();
-    const cc = concrete(0, "#d6d0c4", 2, 8);
-    const wn = waterNormals();
-    const pt = poolTile();
-    const deckMap = photo("wood_floor_deck");
-    const deckN = photo("wood_floor_deck", "nor");
-    const ls = limestone();
-    const s = (p: THREE.MeshStandardMaterialParameters, o: Parameters<typeof patch>[1] = AFTER) => patch(new THREE.MeshStandardMaterial(p), o);
-    const glow = glowTexture();
+    const s = <T extends THREE.Material>(m: T, o: Parameters<typeof patch>[1] = AFTER) => patch(m, o);
+    const lit = <T extends THREE.MeshStandardMaterial>(m: T) => lampLit(m, ["garden", "exterior"]);
     return {
-      lawn: s({ map: lw.map, normalMap: lw.normalMap, roughness: 0.97 }),
-      before: () => lazy.get("before", () => s({ map: patchyYard().map, roughness: 1 }, BEFORE)),
-      beforeSlab: () =>
-        lazy.get("beforeSlab", () => {
-          const old = concrete(1.5, "#aaa398", 3, 9);
-          return s({ map: old.map, normalMap: old.normalMap, roughness: 0.95 }, BEFORE);
-        }),
-      deck: s({ map: deckMap, normalMap: deckN, roughness: 0.62, color: "#c7b6a3" }),
-      stone: s({ map: ls.map, normalMap: ls.normalMap, roughness: 0.82 }),
-      water: patch(
-        new THREE.MeshStandardMaterial({ color: "#1d86a8", roughness: 0.05, metalness: 0.05, normalMap: wn.map, normalScale: new THREE.Vector2(0.3, 0.3), transparent: true, opacity: 0.72, envMapIntensity: 0.7, emissive: new THREE.Color("#2bb3d6"), emissiveIntensity: 0 }),
-        AFTER,
-      ),
-      shell: s({ map: pt.map, roughness: 0.3, emissive: new THREE.Color("#5fd0e6"), emissiveIntensity: 0 }),
-      coping: s({ map: cc.map, normalMap: cc.normalMap, roughness: 0.85 }),
-      steel: s({ color: "#1e1f22", roughness: 0.5, metalness: 0.5 }),
-      fabric: s({ color: "#e4ddcf", roughness: 0.95 }),
-      dark: s({ color: "#3b3834", roughness: 0.7 }),
-      wood: s({ color: "#efece5", roughness: 0.85 }),
-      plants: s({ vertexColors: true, roughness: 0.95 }),
-      canopy: s({ vertexColors: true, roughness: 0.96 }),
-      trunk: s({ color: "#5d4c3f", roughness: 0.95 }),
-      walls: new THREE.MeshStandardMaterial({ map: pl.map, normalMap: pl.normalMap, roughness: 0.92 }),
-      stones: s({ map: cc.map, roughness: 0.9, color: "#e7e1d6" }),
-      bollard: s({ color: "#232326", roughness: 0.5, metalness: 0.4 }),
-      bulb: new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffd89c").multiplyScalar(4), toneMapped: true }),
-      pool: new THREE.MeshBasicMaterial({ map: glow, color: "#ffc98a", transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      deck: s(lit(pbr("deck", { color: "#d2bda6", roughness: 1 }))),
+      stone: s(lit(pbr("paver_stone", { roughness: 1, envMapIntensity: 0.8 }))),
+      coping: s(lit(pbr("paver_stone", { roughness: 1, envMapIntensity: 0.8 }))),
+      // the shell is only ever seen through water, so it carries the water's absorption colour
+      shell: s(lampLit(pbr("pool_tile", { color: "#5fb7c4", roughness: 0.35, envMapIntensity: 0.4 }), ["garden"])),
+      water: s(waterMaterial()),
+      steel: s(lit(solid("#2a2724", 0.45, 0.7))),
+      timber: s(lit(pbr("cedar", { color: "#e8d6c2", roughness: 1 }))),
+      teak: s(lit(pbr("oak_veneer", { color: "#a07b58", roughness: 0.85 }))),
+      cushion: s(lit(pbr("linen", { color: "#e6e0d5", roughness: 1 }))),
+      tableTop: s(lit(pbr("concrete", { color: "#b9b2a8", roughness: 0.9 }))),
+      stones: s(lit(pbr("paver_stone", { roughness: 1 }))),
+      bollard: s(solid("#262422", 0.45, 0.6)),
+      bulb: new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffd9a8").multiplyScalar(5) }),
+      plug: sharedGround(),
+      before: () =>
+        lazy.get("before", () => {
+          const m = pbr("meadow", { color: "#b9ad84", roughness: 1 });
+          return s(m, BEFORE);
+        }) as THREE.MeshStandardMaterial,
+      beforeSlab: () => lazy.get("beforeSlab", () => s(pbr("concrete", { color: "#a39c91", roughness: 1 }), BEFORE)) as THREE.MeshStandardMaterial,
     };
   }, [lazy]);
   useEffect(
     () => () => {
       lazy.dispose();
-      Object.values(mats).forEach((m) => m instanceof THREE.Material && m.dispose());
+      Object.entries(mats).forEach(([k, m]) => k !== "plug" && m instanceof THREE.Material && m.dispose());
     },
     [lazy, mats],
   );
 
-  const bulbsRef = useRef<THREE.InstancedMesh>(null);
-  useEffect(() => {
-    const im = bulbsRef.current;
-    if (!im) return;
-    const m = new THREE.Matrix4();
-    geo.bulbs.forEach((p, i) => im.setMatrixAt(i, m.makeTranslation(p.x, p.y, p.z)));
-    im.instanceMatrix.needsUpdate = true;
-  }, [geo]);
-
-  useFrame((_, dt) => {
+  useFrame(() => {
     const d = channels.dusk;
-    const lit = c.evening || useDemo.getState().phase === "reveal" ? d : 0;
-    const water = mats.water.normalMap!;
-    water.offset.x = (U.time.value * 0.02) % 1;
-    water.offset.y = (U.time.value * 0.013) % 1;
-    mats.water.emissiveIntensity = 0.05 + lit * 0.9;
-    mats.shell.emissiveIntensity = lit * 0.9;
-    mats.bollard.emissiveIntensity = 0;
-    mats.pool.opacity += (lit * 0.75 - mats.pool.opacity) * Math.min(1, dt * 6);
+    const lit = THREE.MathUtils.smoothstep(d, 0.55, 0.9);
+    for (const w of [mats.water, mirror?.material as THREE.ShaderMaterial | undefined]) {
+      if (!w) continue;
+      w.uniforms.uTime.value = U.time.value;
+      w.uniforms.uGlow.value = lit;
+    }
+    mats.bulb.color.setRGB(1, 0.85, 0.66).multiplyScalar(0.4 + lit * 6);
     if (lights.current) lights.current.visible = lit > 0.01;
-    if (pointLight.current) pointLight.current.intensity = c.pergola ? lit * 9 : 0;
   });
+
+  // Planar reflection on desktop tiers: the lit house mirrored in the pool at dusk.
+  const { size } = useThree();
+  const mirror = useMemo(() => {
+    if (!hi) return null;
+    const r = new Reflector(new THREE.PlaneGeometry(PL.x1 - PL.x0, PL.z1 - PL.z0), {
+      textureWidth: 1024,
+      textureHeight: 1024,
+      multisample: 0,
+      clipBias: 0.002,
+      shader: REFLECTIVE_WATER,
+    });
+    r.rotation.x = -Math.PI / 2;
+    r.position.set((PL.x0 + PL.x1) / 2, WATER_Y, (PL.z0 + PL.z1) / 2);
+    r.renderOrder = 2;
+    const m = r.material as THREE.ShaderMaterial;
+    m.transparent = true;
+    m.depthWrite = false;
+    m.blending = THREE.CustomBlending;
+    m.blendEquation = THREE.AddEquation;
+    m.blendSrc = THREE.OneFactor;
+    m.blendDst = THREE.SrcAlphaFactor;
+    // live, shared sky uniforms (the reflector clones its shader's uniforms)
+    Object.assign(m.uniforms, SKY_UNIFORMS);
+    const inner = r.onBeforeRender.bind(r);
+    r.onBeforeRender = (renderer, scene, cam, g, mat, grp) => {
+      inner(renderer, scene, cam, g, mat, grp);
+      updateLampViewPositions(cam); // the mirrored render moved the lamps; put them back
+    };
+    patch(m, AFTER);
+    return r;
+  }, [hi]);
+  useEffect(() => () => mirror?.dispose(), [mirror]);
+  useEffect(() => {
+    if (!mirror) return;
+    const s = Math.min(1024, Math.round(Math.max(size.width, size.height) * 0.6));
+    mirror.getRenderTarget().setSize(s, Math.round(s * 0.75));
+  }, [mirror, size.width, size.height]);
 
   const surfaceMesh = c.surface === "deck" ? geo.deck : c.surface === "stone" ? geo.stone : null;
   const lush = c.planting === "lush";
@@ -374,55 +335,38 @@ export function Garden() {
 
   return (
     <group name="garden">
-      <mesh geometry={c.pool ? geo.lawnPool : geo.lawnFull} material={mats.lawn} receiveShadow />
-      <mesh geometry={geo.walls} material={mats.walls} {...sh} />
       {surfaceMesh && <mesh geometry={surfaceMesh} material={c.surface === "deck" ? mats.deck : mats.stone} {...sh} />}
-      {c.pool && (
+      {c.pool ? (
         <>
           <mesh geometry={geo.shell} material={mats.shell} receiveShadow />
-          <mesh geometry={geo.water} material={mats.water} receiveShadow renderOrder={2} />
+          {mirror ? <primitive object={mirror} /> : <mesh geometry={geo.water} material={mats.water} renderOrder={2} />}
           <mesh geometry={geo.coping} material={mats.coping} {...sh} />
-          <mesh geometry={geo.wood} material={mats.wood} {...sh} />
+          <mesh geometry={geo.teak} material={mats.teak} {...sh} />
+          <mesh geometry={geo.cushion} material={mats.cushion} {...sh} />
         </>
+      ) : (
+        <mesh geometry={geo.plug} material={mats.plug} receiveShadow />
       )}
-      {showPergola && (
+      {c.pergola && (
         <>
-          <mesh geometry={geo.pergola} material={mats.steel} {...sh} />
-          <mesh geometry={geo.fabric} material={mats.fabric} {...sh} />
-          <mesh geometry={geo.dark} material={mats.dark} {...sh} />
+          <mesh geometry={geo.steel} material={mats.steel} {...sh} />
+          <mesh geometry={geo.timber} material={mats.timber} {...sh} />
+          <mesh geometry={geo.tableTop} material={mats.tableTop} {...sh} />
         </>
       )}
-      <mesh geometry={geo.plantsCore} material={mats.plants} {...sh} />
-      {lush && <mesh geometry={geo.plantsLush} material={mats.plants} {...sh} />}
-      <mesh geometry={geo.trees.canopy} material={mats.canopy} {...sh} />
-      <mesh geometry={geo.trees.trunks} material={mats.trunk} castShadow />
-      {lush && (
-        <>
-          <mesh geometry={geo.lushTrees.canopy} material={mats.canopy} {...sh} />
-          <mesh geometry={geo.lushTrees.trunks} material={mats.trunk} castShadow />
-        </>
-      )}
+      {plants.core.map((m) => (
+        <primitive key={m.name} object={m} />
+      ))}
+      {lush && plants.lush.map((m) => <primitive key={m.name + "l"} object={m} />)}
       <mesh geometry={geo.stones} material={mats.stones} receiveShadow />
       <mesh geometry={geo.bollards} material={mats.bollard} castShadow />
-
-      {/* evening lighting design */}
       <group ref={lights} visible={false}>
         <mesh geometry={geo.bollardTops} material={mats.bulb} />
-        {showPergola && <instancedMesh ref={bulbsRef} args={[undefined, mats.bulb, geo.bulbs.length]} frustumCulled={false}>
-          <sphereGeometry args={[0.035, 8, 6]} />
-        </instancedMesh>}
-        {geo.pools.map((p, i) => (
-          <mesh key={i} position={p} rotation-x={-Math.PI / 2} material={mats.pool} renderOrder={3}>
-            <planeGeometry args={[2.6, 2.6]} />
-          </mesh>
-        ))}
       </group>
-      {/* always mounted (intensity 0 by day) so toggling lights never changes the light count */}
-      {tier !== "low" && <pointLight ref={pointLight} position={[(PG.x0 + PG.x1) / 2, PG.h - 0.5, (PG.z0 + PG.z1) / 2]} color="#ffc27a" distance={9} decay={1.6} intensity={0} />}
 
       {beforeOn && (
         <>
-          <mesh geometry={geo.lawnFull} material={mats.before()} position-y={0.004} />
+          <mesh geometry={geo.beforeGround} material={mats.before()} />
           <mesh geometry={geo.slab} material={mats.beforeSlab()} />
         </>
       )}
@@ -430,4 +374,112 @@ export function Garden() {
   );
 }
 
-export const GARDEN_EXTENT = { x0: G.x0, x1: WING.x0, z0: G.z0, z1: MAIN.z0 };
+const WATER_WAVES = /* glsl */ `
+float h(vec2 p) {
+  return sin(p.x * 3.1 + uTime * 0.9) * 0.5 + sin(p.y * 2.3 - uTime * 0.7) * 0.5 + sin((p.x + p.y) * 5.7 + uTime * 1.3) * 0.25;
+}
+vec3 waterNormal(vec3 w) {
+  vec2 e = vec2(0.03, 0.0);
+  vec2 p = w.xz * 1.6;
+  return normalize(vec3(h(p - e.xy) - h(p + e.xy), 12.0, h(p - e.yx) - h(p + e.yx)));
+}
+`;
+
+/** Pool water over a planar reflection (three's Reflector renders the mirrored view). */
+const REFLECTIVE_WATER = {
+  name: "ReflectiveWater",
+  uniforms: {
+    color: { value: null },
+    tDiffuse: { value: null },
+    textureMatrix: { value: null },
+    uTime: { value: 0 },
+    uGlow: { value: 0 },
+  },
+  vertexShader: /* glsl */ `
+    uniform mat4 textureMatrix;
+    varying vec4 vUvR;
+    varying vec3 vW;
+    void main() {
+      vUvR = textureMatrix * vec4(position, 1.0);
+      vec4 w = modelMatrix * vec4(position, 1.0);
+      vW = w.xyz;
+      gl_Position = projectionMatrix * viewMatrix * w;
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    #include <common>
+    ${"${SKY}"}
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uGlow;
+    varying vec4 vUvR;
+    varying vec3 vW;
+    ${"${WAVES}"}
+    void main() {
+      vec3 n = waterNormal(vW);
+      vec3 V = normalize(cameraPosition - vW);
+      float f = 0.02 + 0.98 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
+      vec4 uvr = vUvR;
+      uvr.xy += n.xz * 0.06 * uvr.w;
+      vec3 refl = texture2DProj(tDiffuse, uvr).rgb;
+      // reflection on top; the lit, tinted shell shows through (premultiplied: src + dst * a)
+      float fr = clamp(f * 1.15 + 0.06, 0.0, 1.0);
+      gl_FragColor = vec4(refl * fr + vec3(0.004, 0.02, 0.024), (1.0 - fr) * 0.86);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }
+  `,
+};
+REFLECTIVE_WATER.fragmentShader = REFLECTIVE_WATER.fragmentShader.replace("${SKY}", SKY_GLSL).replace("${WAVES}", WATER_WAVES);
+
+/**
+ * Pool water: reflects the real sky (env map, Fresnel), shows the tiled shell through a
+ * clear blue-green body, ripples with two scrolling normal octaves, glows when lit at night.
+ */
+function waterMaterial() {
+  const m = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.SrcAlphaFactor,
+    uniforms: { ...SKY_UNIFORMS, uTime: { value: 0 }, uGlow: { value: 0 } },
+    vertexShader: /* glsl */ `
+      varying vec3 vW;
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        vec4 w = modelMatrix * vec4(position, 1.0);
+        vW = w.xyz;
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      #include <common>
+      ${SKY_GLSL}
+      uniform float uTime;
+      uniform float uGlow;
+      varying vec3 vW;
+      varying vec2 vUv;
+      float h(vec2 p) {
+        return sin(p.x * 3.1 + uTime * 0.9) * 0.5 + sin(p.y * 2.3 - uTime * 0.7) * 0.5 + sin((p.x + p.y) * 5.7 + uTime * 1.3) * 0.25;
+      }
+      void main() {
+        vec2 e = vec2(0.03, 0.0);
+        vec2 p = vW.xz * 1.6;
+        vec3 n = normalize(vec3(h(p - e.xy) - h(p + e.xy), 12.0, h(p - e.yx) - h(p + e.yx)));
+        vec3 V = normalize(cameraPosition - vW);
+        float f = 0.02 + 0.98 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
+        vec3 R = reflect(-V, n);
+        // the real sky, as seen in the dome at this time of day
+        vec3 sky = skyRadiance(normalize(vec3(R.x, max(R.y, 0.02), R.z)));
+        // reflection on top; the lit, tinted shell shows through (premultiplied: src + dst * a)
+        gl_FragColor = vec4(sky * f + vec3(0.004, 0.02, 0.024), (1.0 - f) * 0.86);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+  return m;
+}

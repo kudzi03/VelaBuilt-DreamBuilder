@@ -58,6 +58,16 @@ const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 
 
 export let resetView: () => void = () => {};
 
+/** QA: `?cam=x,y,z&look=x,y,z&fov=n` pins the camera (composition work, screenshots). */
+const DEBUG_CAM = (() => {
+  if (typeof window === "undefined") return null;
+  const q = new URLSearchParams(window.location.search);
+  const cam = q.get("cam")?.split(",").map(Number);
+  const look = q.get("look")?.split(",").map(Number);
+  if (!cam || !look || cam.length !== 3 || look.length !== 3) return null;
+  return { cam: cam as V3, look: look as V3, fov: Number(q.get("fov")) || 0 };
+})();
+
 export function CameraRig() {
   const cc = useRef<CameraControlsImpl>(null);
   const { size, camera } = useThree();
@@ -76,6 +86,22 @@ export function CameraRig() {
     (transition: boolean) => {
       const c = cc.current;
       if (!c) return;
+      if (DEBUG_CAM) {
+        const cam = camera as THREE.PerspectiveCamera;
+        if (DEBUG_CAM.fov) {
+          cam.fov = DEBUG_CAM.fov;
+          cam.updateProjectionMatrix();
+        }
+        c.minDistance = 0;
+        c.maxDistance = Infinity;
+        c.minPolarAngle = 0;
+        c.maxPolarAngle = Math.PI;
+        c.minAzimuthAngle = -Infinity;
+        c.maxAzimuthAngle = Infinity;
+        c.setLookAt(...DEBUG_CAM.cam, ...DEBUG_CAM.look, false);
+        c.setFocalOffset(0, 0, 0, false);
+        return;
+      }
       const shot = SHOTS[shotKey];
       const cam = camera as THREE.PerspectiveCamera;
       const fov = fovFor(size.width, size.height);
@@ -105,6 +131,29 @@ export function CameraRig() {
   useEffect(() => {
     resetView = () => apply(true);
   }, [apply]);
+
+  // QA: pin the camera from the console / screenshot harness (debug builds only)
+  useEffect(() => {
+    if (!location.search.includes("debug")) return;
+    (window as unknown as { __setCam: unknown }).__setCam = (p: V3, t: V3, fov?: number) => {
+      const c = cc.current;
+      if (!c) return;
+      arrival.current.active = false;
+      const cam = camera as THREE.PerspectiveCamera;
+      if (fov) {
+        cam.fov = fov;
+        cam.updateProjectionMatrix();
+      }
+      c.minDistance = 0;
+      c.maxDistance = Infinity;
+      c.minPolarAngle = 0;
+      c.maxPolarAngle = Math.PI;
+      c.minAzimuthAngle = -Infinity;
+      c.maxAzimuthAngle = Infinity;
+      c.setFocalOffset(0, 0, 0, false);
+      c.setLookAt(...p, ...t, false);
+    };
+  }, [camera]);
 
   // shot changes (industry / phase / layout)
   useEffect(() => {
@@ -153,6 +202,11 @@ export function CameraRig() {
     if (!c) return;
     const dt = Math.min(delta, 1 / 20);
     const a = arrival.current;
+    if (DEBUG_CAM && a.active) {
+      a.active = false;
+      apply(false);
+      return;
+    }
     if (a.active) {
       const shot = SHOTS.hero;
       const fov = fovFor(size.width, size.height);
@@ -184,7 +238,7 @@ export function CameraRig() {
     }
     // slow turntable drift on the establishing shots
     const ph = useDemo.getState().phase;
-    if (!reducedMotion && !interacting.current && (ph === "intro" || ph === "reveal")) c.rotate(dt * 0.018, 0, true);
+    if (!DEBUG_CAM && !reducedMotion && !interacting.current && (ph === "intro" || ph === "reveal")) c.rotate(dt * 0.018, 0, true);
   });
 
   return <CameraControls ref={cc} makeDefault />;
