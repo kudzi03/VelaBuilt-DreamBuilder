@@ -10,12 +10,12 @@ It ends on: **This is what VelaBuilt builds.** · *Build this for my business.*
 
 | Business | What the customer does in 3D |
 | --- | --- |
-| Remodeling | Kitchen cutaway: cabinets, tops, floors, island layout, before/after wipe |
+| Remodeling | Walk into the kitchen pavilion: fronts, stone worktop and slab backsplash, floors, island layout, before/after wipe |
 | Roofing | Four roof systems and colours, **tap the roof to mark problems**, areas measured from the model, before/after |
-| Structural steel | The building dissolves to its frame; erection sequence, explode, tap any member for section/length/mass, member schedule, attach drawings |
+| Structural steel | The building burns away along a section plane to its frame; erection sequence, explode, tap any member for section/length/mass, member schedule, attach drawings |
 | Solar | Panels laid out inside the roof's setbacks, system size, finish, batteries, homeowner/roof-age qualification |
 | Outdoor living | Terrace, pergola, pool, planting, **evening lighting**, before/after |
-| HVAC | X-ray cutaway with live airflow; symptoms light up the right equipment/zone; pick a visit slot |
+| HVAC | X-ray view with the air moving through the ducts; symptoms bring the right equipment or zone forward; pick a visit slot |
 
 Everything is labelled honestly: prices are **sample pricing**, the business flow is a
 **system demo with sample data**, solar shows panel count and nominal kW only, and the
@@ -135,9 +135,12 @@ app/            layout (fonts, metadata, JSON-LD), page, API routes, robots/site
 components/     DOM UI — top bar, intro, panels, before/after handle, flow, reveal, forms
 lib/            spec (the house), steel frame, options + sample pricing, estimates,
                 lead builder/scoring, store (zustand), analytics, quality tiers, units
-three/          the 3D scene — stage, atmosphere, camera rig, house, roof, kitchen,
-                garden, solar, steel, hvac, procedural textures, shader patch
-scripts/        QA screenshots, interaction and accessibility checks, share-image render
+three/          the 3D scene — stage, atmosphere (sky, IBL, sun, fog), camera rig, house,
+                roof, kitchen, garden, landscape, solar, steel, hvac, materials,
+                impostors, lamps, interior probe, shader patch
+public/assets/  CC0 skies, texture sets, props (GLB) and plant atlases, built by scripts/assets
+scripts/        asset pipeline, QA screenshots, interaction and accessibility checks,
+                share image, poster and industry stills
 ```
 
 Key ideas:
@@ -145,13 +148,17 @@ Key ideas:
 - **One spec, six stories.** `lib/spec.ts` defines the house once. Roof areas (for the
   roofer), panel slots (for solar), members (for steel), rooms and duct runs (for HVAC)
   and the kitchen all derive from it, so every number shown comes from the model.
-- **Procedural everything.** Geometry and most textures are generated on the device —
-  no model downloads. Photo textures (CC0) only for woods, lazy-loaded.
+- **Real materials, honest provenance.** Architecture and joinery are modelled in code from
+  the spec; surfaces are CC0 PBR scans at true scale, props are CC0 models, plants are CC0
+  scans baked to impostors. Every source and licence is in `ASSET_SOURCES.md`, generated
+  from `scripts/assets/sources.json`. Scenario assets load on first use.
 - **One shader patch** (`three/shared.ts`) adds section cuts, before/after wipes and
   dither fades to standard three.js materials; shadows follow the cut.
-- **UI-safe camera framing.** Each shot is a target + angles + subject radius; the rig
-  solves distance and focal offset so the subject sits in the space the panel or
-  bottom sheet does not cover — on any screen shape.
+- **Photographer's camera.** Each shot is a position, a subject and a lens. Ground-level
+  shots stay level (verticals vertical) and use lens shift — an off-axis projection — to put
+  the subject in the space the panel or bottom sheet leaves free, on any screen shape.
+- **Light you can believe.** Two photographed skies drive sky, image-based light and sun
+  across golden and blue hour; rooms use lamps and (in the kitchen) a captured room probe.
 
 ## Performance
 
@@ -184,6 +191,17 @@ node scripts/qa-interactions.mjs ./qa     # roof marking, compare, lighting, ste
 node scripts/qa-a11y.mjs                  # axe-core across intro → explore → flow → reveal → form
 node scripts/og/render.mjs                # re-render the share image from the live scene
 node scripts/og/poster.mjs                # re-render the no-WebGL poster
+node scripts/og/previews.mjs              # re-render the industry stills on the intro
+```
+
+Asset pipeline (sources are downloaded to `.cache/`, never committed):
+
+```bash
+python3 scripts/assets/fetch.py           # CC0 skies, textures, models, plants + credits
+python3 scripts/assets/build_textures.py  # PBR sets → public/assets/tex (Pillow + NumPy)
+node scripts/assets/build_models.mjs      # props → meshopt GLB (gltf-transform)
+python3 scripts/assets/sources_md.py      # regenerate ASSET_SOURCES.md
+# skies and plant impostors use Blender as a Python module: build_env.py, bake_impostors.py, pack_impostors.py
 ```
 
 ## Customising for a client

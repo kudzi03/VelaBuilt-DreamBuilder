@@ -125,6 +125,8 @@ export interface DemoState extends Configs {
   industry: IndustryId | null;
   lastIndustry: IndustryId | null;
   sceneReady: boolean;
+  /** 0..100 — textures, skies and models loaded so far (the loader shows it) */
+  loadProgress: number;
   /** client settings detected (tier, webgl, params) — the 3D stage may start */
   booted: boolean;
   webgl: boolean;
@@ -176,6 +178,7 @@ export const useDemo = create<DemoState>()(
     industry: null,
     lastIndustry: null,
     sceneReady: false,
+    loadProgress: 0,
     booted: false,
     webgl: true,
     tier: "high",

@@ -1,6 +1,6 @@
 "use client";
 
-import { PerformanceMonitor } from "@react-three/drei";
+import { PerformanceMonitor, useProgress } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -42,6 +42,25 @@ function Ready() {
     // performance.now() is measured from navigation start: this is time-to-first-3D-frame.
     track("demo_loaded", { tier: s.tier, ms: Math.round(performance.now()), dpr: Number(gl.getPixelRatio().toFixed(2)) });
   });
+  return null;
+}
+
+/** Reports asset loading to the page's loader (the loader lives outside the 3D chunk). */
+function LoadProgress() {
+  useEffect(() => {
+    // loaders start while components render: forward outside React's render, monotonic
+    let best = 0;
+    let raf = 0;
+    const unsub = useProgress.subscribe((s) => {
+      best = Math.max(best, s.total ? (s.loaded / s.total) * 100 : 0);
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => useDemo.getState().set({ loadProgress: best }));
+    });
+    return () => {
+      unsub();
+      cancelAnimationFrame(raf);
+    };
+  }, []);
   return null;
 }
 
@@ -116,6 +135,7 @@ export default function Stage() {
     >
       <Adaptive />
       <ContextGuard />
+      <LoadProgress />
       <Director />
       <Atmosphere />
       <Suspense fallback={null}>

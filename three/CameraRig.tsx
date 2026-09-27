@@ -51,7 +51,7 @@ export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal" | "hvacOutdoo
   hvacOutdoor: { pos: [15.5, 7.2, -17.5], target: [3.2, 2.4, -5.2], fov: 38, fit: [15, 9], orbit: 0.45, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
   steel: { pos: [17, 9.5, 15.5], target: [0.3, 4.0, -3.5], fov: 38, fit: [22, 12], orbit: 0.55, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
   flow: { pos: [-17.5, 1.6, -19.5], target: [-2.6, 3.6, -4.6], level: true, fov: 42, fit: [25, 12], orbit: 0.3 },
-  reveal: { pos: [-19.5, 1.7, -22.5], target: [-2.4, 3.8, -4.2], level: true, fov: 40, fit: [27, 13], orbit: 0.3 },
+  reveal: { pos: [-19.5, 1.7, -22.5], target: [-2.4, 3.8, -4.2], level: true, fov: 40, fit: [19, 9], overlap: 0.45, orbit: 0.3 },
 };
 
 /** Where to stand, the lens, and the shift that puts the subject in the middle of the free area. */

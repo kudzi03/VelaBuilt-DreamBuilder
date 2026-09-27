@@ -10,118 +10,93 @@
   },
   "polyhaven_textures": {
     "japanese_cedar_planks": {
-      "use": "Vertical cedar cladding, soffits"
+      "use": "Cedar cladding and soffits"
     },
     "roof_slates_02": {
-      "use": "Natural slate roof"
+      "use": "Roofing: natural slate"
     },
     "wood_floor": {
-      "use": "Kitchen floor: wide-plank oak"
+      "use": "Floors: wide-plank oak (kitchen option, house interiors)"
     },
     "herringbone_parquet": {
-      "use": "Kitchen floor: herringbone oak"
+      "use": "Kitchen floor option: herringbone oak"
     },
     "american_walnut_veneer": {
-      "use": "Cabinets: walnut"
+      "use": "Kitchen fronts: walnut; interior joinery"
     },
     "white_oak_veneer": {
-      "use": "Ceiling slats, dining table, oak cabinets"
+      "use": "Kitchen vault: white-oak slats"
     },
     "oak_veneer_01": {
-      "use": "Butcher-block worktop, before-kitchen doors"
+      "use": "Butcher-block worktop, \"before\" honey-oak cabinets, garden teak"
     },
     "floor_tiles_06": {
-      "use": "Before-kitchen dated floor"
+      "use": "\"Before\" kitchen: checker floor"
     },
     "wood_floor_deck": {
-      "use": "Hardwood deck"
+      "use": "Garden option: hardwood deck"
     },
     "rough_linen": {
-      "use": "Upholstery, curtains"
-    },
-    "bark_brown_02": {
-      "use": "Tree impostor trunks (reference)"
+      "use": "Upholstery and cushions"
     },
     "concrete_floor_02": {
-      "use": "Garage apron, before-garden slab"
-    },
-    "grooved_concrete_driveway": {
-      "use": "Driveway"
-    },
-    "roof_07": {
-      "use": "Weathered shingle roof (before)"
+      "use": "Concrete: steel footings, before-garden slab"
     }
   },
   "ambientcg_textures": {
     "Travertine009": {
-      "use": "Limestone cladding, terrace and pool coping"
-    },
-    "Marble012": {
-      "use": "Worktop: Calacatta"
-    },
-    "Marble016": {
-      "use": "Worktop: Nero Marquina"
+      "use": "Limestone cladding, terrace pavers, pool coping"
     },
     "Concrete034": {
-      "use": "Polished concrete worktop and floor"
+      "use": "Polished concrete worktop, floor and splash"
     },
     "Grass001": {
       "use": "Lawn"
     },
     "Grass004": {
-      "use": "Meadow beyond the lot, before-garden patchy lawn"
+      "use": "Meadow beyond the lot"
     },
     "Gravel022": {
-      "use": "Gravel beds and paths"
-    },
-    "RoofingTiles013A": {
-      "use": "Concrete roof tile (charcoal)"
+      "use": "Gravel drive, margins and paths"
     },
     "RoofingTiles012A": {
-      "use": "Concrete roof tile (terracotta)"
+      "use": "Roofing: concrete tile (greyscale, tinted per colour)"
     },
     "Tiles107": {
-      "use": "Large-format porcelain floor, pool lining"
+      "use": "Pool lining; \"before\" kitchen tile splash"
     },
     "Plaster001": {
-      "use": "Interior plaster"
-    },
-    "Terrazzo013": {
-      "use": "Before-kitchen laminate stand-in"
+      "use": "Interior plaster; lime-plaster splash"
     },
     "Metal032": {
-      "use": "Brushed steel (appliances, sink)"
+      "use": "Brushed and galvanised steel: sink, steel frame"
     },
     "Fabric061": {
-      "use": "Rug, boucl\u00e9 upholstery"
+      "use": "Rugs and boucl\u00e9 upholstery"
     },
     "Asphalt026C": {
-      "use": "Asphalt granule grain for architectural shingles"
+      "use": "Granule grain of the architectural and weathered shingles"
     },
     "Leather037": {
-      "use": "Bar stool upholstery"
+      "use": "Counter-stool seats"
     },
     "Marble019": {
       "use": "Worktop and slab backsplash: Calacatta"
     },
     "Granite002A": {
-      "use": "Worktop: black granite (graded dark)"
+      "use": "Worktop: black granite (graded); \"before\" speckled granite"
     },
     "Marble025": {
-      "use": "Large-format porcelain floor (composited 1200x600 tiles)"
+      "use": "Floor option: large-format porcelain (1200\u00d7600 tiles)"
     }
   },
   "polyhaven_models": {
     "modern_ceiling_lamp_01": {
-      "use": "Kitchen pendants",
-      "res": "1k"
-    },
-    "potted_plant_01": {
-      "use": "Interior planting",
+      "use": "Island pendants",
       "res": "1k"
     },
     "potted_plant_04": {
-      "use": "Worktop succulent",
+      "use": "Worktop aloe",
       "res": "1k"
     },
     "ceramic_vase_01": {
@@ -129,11 +104,11 @@
       "res": "1k"
     },
     "ceramic_vase_03": {
-      "use": "Worktop styling",
+      "use": "Island and ledge styling",
       "res": "1k"
     },
     "wooden_bowl_01": {
-      "use": "Island styling",
+      "use": "Island fruit bowl",
       "res": "1k"
     },
     "lemon": {
@@ -144,54 +119,30 @@
       "use": "Worktop styling",
       "res": "1k"
     },
-    "mid_century_lounge_chair": {
-      "use": "Living room, seen through the glazing",
-      "res": "1k"
-    },
     "exterior_aircon_unit": {
-      "use": "Heat-pump outdoor unit (HVAC)",
-      "res": "1k"
-    },
-    "modern_coffee_table_01": {
-      "use": "Living room",
-      "res": "1k"
-    },
-    "throw_pillows_01": {
-      "use": "Sofa styling",
+      "use": "HVAC outdoor unit (clean and weathered)",
       "res": "1k"
     }
   },
   "polyhaven_trees": {
     "jacaranda_tree": {
-      "use": "Broadleaf specimen trees (impostors)",
+      "use": "Broadleaf specimen trees",
       "res": "1k"
     },
     "fir_tree_01": {
-      "use": "Conifers and forest edge (impostors)",
+      "use": "Conifers and the forest edge",
       "res": "1k"
     },
     "island_tree_02": {
-      "use": "Broadleaf shrubby trees (impostors)",
+      "use": "Mid-size garden trees",
       "res": "1k"
     },
     "searsia_lucida": {
-      "use": "Large shrubs (impostors)",
+      "use": "Large shrubs and boundary planting",
       "res": "1k"
     },
     "shrub_02": {
-      "use": "Garden shrubs (impostors)",
-      "res": "1k"
-    },
-    "grass_medium_01": {
-      "use": "Ornamental grasses (impostors)",
-      "res": "1k"
-    },
-    "grass_medium_02": {
-      "use": "Ornamental grasses (impostors)",
-      "res": "1k"
-    },
-    "fern_02": {
-      "use": "Shade planting (impostors)",
+      "use": "Garden shrubs",
       "res": "1k"
     }
   }

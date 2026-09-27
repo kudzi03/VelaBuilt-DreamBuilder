@@ -139,3 +139,32 @@ build. Share image rendered from the actual scene.
 | `RESEND_API_KEY`, `LEAD_FROM_EMAIL` | email delivery via Resend |
 | `LEAD_WEBHOOK_URL` | POST each lead to Zapier/Make/n8n/CRM |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | persist leads + events (tables in README) |
+
+## 8. Visual overhaul (2026-09): from diagram to architectural visualisation
+
+The system, flow and data model above are unchanged. What changed is how it looks:
+the first version read as a well-made diagram (procedural textures, primitive furniture,
+orbiting isometric views). This pass rebuilt the art direction toward twilight
+architectural photography. Pre-overhaul state: git tag `pre-visual-upgrade`.
+
+| Area | Before | Now |
+| --- | --- | --- |
+| Sky and light | Procedural light studio, flat sky | Two photographed CC0 skies (golden hour → blue hour) drive the visible sky, the image-based light and the sun; a blue-hour grade; fog that matches the horizon behind it |
+| Materials | Canvas-generated textures | CC0 PBR scans at true scale (colour, normal, AO/roughness/metal), composited where needed (stone panels, porcelain, shingles, weathered shingles) — `scripts/assets` |
+| Vegetation | Primitive "lollipop" trees | Poly Haven plant scans baked in Cycles to hemi-octahedral impostors, lit live (wrap + translucency), kept off every camera's near field |
+| Architecture | Boxes with holes | Wall thickness, lined reveals, set-back frames, sills and drips, stone base and cedar, glazing that reflects the sky and shows lit, furnished rooms |
+| Kitchen | Dollhouse (roof lifted off) | Walk-in, eye-level pavilion: eased-edge joinery, slab backsplash, waterfall island, oak-slat vault, CC0 props, lamps, an interior reflection probe; dated "before" with uppers and a hood |
+| Roofing | Procedural shingles | Laminated shingles, concrete tile, slate, standing seam from scans; weathered "before" with algae streaks and lichen |
+| Steel | Plain extrusions | Filleted I sections, hollow sections, end plates, bolts, gussets, anchor bolts on pads; the house burns away along a glowing section plane; spec callouts |
+| HVAC | Glowing tubes and light cones | X-ray sheet-metal ducts with restrained airflow particles (cool blue / warm amber), solid equipment (CC0 outdoor unit), an east shot for outdoor-unit problems |
+| Camera | Orbit targets with focal offset (moved the camera to clear the UI) | Photographer shots: position, target, lens; level verticals with real lens shift (off-axis projection) so the UI never moves the camera |
+| UI | Light paper glass, sans headline, icon cards | Dark smoked glass over the scene, warm off-white type, bronze accent, Instrument Serif display, industry filmstrip of rendered stills, a loader that draws the house |
+
+Rules that came out of the QA passes (worth keeping):
+
+- Impostor trees look wrong inside ~25 m of a camera; place specimen trees with every shot in mind.
+- Straight-alpha atlases need their colour kept under transparent texels (WebP `exact`) or mips go black.
+- The sky photographs have their own hills: mask them near the horizon, and paint the dome below the horizon with the fog colour.
+- Interiors lit by the open sky look flat and tinted; a captured room probe fixes both.
+- Lamps are warm white, not orange: an interior photographer white-balances for them.
+- Don't edit source files while a QA render is running: hot reload restarts the page.

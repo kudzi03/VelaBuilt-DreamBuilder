@@ -29,6 +29,8 @@ function rect(sel: string) {
 }
 
 function computeInsets(): Insets {
+  // stills for the industry tiles are rendered with no UI (scripts/og/previews.mjs)
+  if ((window as unknown as { __bare?: boolean }).__bare) return { top: 0, right: 0, bottom: 0, left: 0 };
   const s = useDemo.getState();
   const w = window.innerWidth;
   const h = window.innerHeight;

@@ -197,28 +197,6 @@
   ],
   "bytes": 647874
  },
- "driveway": {
-  "meters": [
-   1.8,
-   1.8
-  ],
-  "maps": [
-   "color",
-   "normal",
-   "arm"
-  ],
-  "sizes": [
-   1024,
-   512
-  ],
-  "note": "",
-  "mean": [
-   0.3146,
-   0.1661,
-   0.092
-  ],
-  "bytes": 1307494
- },
  "gravel": {
   "meters": [
    1.5,
@@ -350,28 +328,6 @@
    0.0353
   ],
   "bytes": 1990162
- },
- "nero": {
-  "meters": [
-   1.6,
-   1.6
-  ],
-  "maps": [
-   "color",
-   "normal",
-   "arm"
-  ],
-  "sizes": [
-   1024,
-   512
-  ],
-  "note": "",
-  "mean": [
-   0.0544,
-   0.0586,
-   0.0564
-  ],
-  "bytes": 1371686
  },
  "oak_floor": {
   "meters": [
@@ -614,28 +570,6 @@
    0.3501
   ],
   "bytes": 1120664
- },
- "terrazzo": {
-  "meters": [
-   1.0,
-   1.0
-  ],
-  "maps": [
-   "color",
-   "normal",
-   "arm"
-  ],
-  "sizes": [
-   1024,
-   512
-  ],
-  "note": "",
-  "mean": [
-   0.6949,
-   0.6506,
-   0.6252
-  ],
-  "bytes": 331516
  },
  "tile_roof": {
   "meters": [

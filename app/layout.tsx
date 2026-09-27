@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Geist_Mono } from "next/font/google";
+import { Archivo, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { CONTACT_EMAIL, INSTAGRAM_URL, SHARE_DESCRIPTION, SHARE_TITLE, SITE_URL, VELABUILT_URL } from "@/lib/config";
 import "./globals.css";
@@ -10,6 +10,15 @@ const archivo = Archivo({
   variable: "--font-archivo",
   display: "swap",
   axes: ["wdth"],
+});
+
+// editorial display face for headlines, panel titles and figures
+const instrument = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-instrument",
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -68,8 +77,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#f4f1ec",
-  colorScheme: "light",
+  themeColor: "#0e0d0c",
+  colorScheme: "dark",
 };
 
 const jsonLd = {
@@ -95,7 +104,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${archivo.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${archivo.variable} ${instrument.variable} ${geistMono.variable}`}>
       <head>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
