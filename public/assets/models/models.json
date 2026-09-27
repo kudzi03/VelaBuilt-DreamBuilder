@@ -1,0 +1,82 @@
+{
+  "vase_a": {
+    "src": "ceramic_vase_01",
+    "title": "Ceramic Vase 01",
+    "authors": [
+      "James Ray Cock"
+    ],
+    "license": "CC0 1.0",
+    "source": "https://polyhaven.com/a/ceramic_vase_01",
+    "bytes": 68076
+  },
+  "vase_b": {
+    "src": "ceramic_vase_03",
+    "title": "Ceramic Vase 03",
+    "authors": [
+      "James Ray Cock"
+    ],
+    "license": "CC0 1.0",
+    "source": "https://polyhaven.com/a/ceramic_vase_03",
+    "bytes": 77464
+  },
+  "bowl": {
+    "src": "wooden_bowl_01",
+    "title": "Wooden Bowl 01",
+    "authors": [
+      "Oliver Harries"
+    ],
+    "license": "CC0 1.0",
+    "source": "https://polyhaven.com/a/wooden_bowl_01",
+    "bytes": 107316
+  },
+  "lemon": {
+    "src": "lemon",
+    "title": "Lemon",
+    "authors": [
+      "Kuutti Siitonen"
+    ],
+    "license": "CC0 1.0",
+    "source": "https://polyhaven.com/a/lemon",
+    "bytes": 44740
+  },
+  "board": {
+    "src": "wooden_cutting_board",
+    "title": "Wooden Cutting Board",
+    "authors": [
+      "Kuutti Siitonen"
+    ],
+    "license": "CC0 1.0",
+    "source": "https://polyhaven.com/a/wooden_cutting_board",
+    "bytes": 70372
+  },
+  "aloe": {
+    "src": "potted_plant_04",
+    "title": "Potted Plant 04",
+    "authors": [
+      "James Ray Cock"
+    ],
+    "license": "CC0 1.0",
+    "source": "https://polyhaven.com/a/potted_plant_04",
+    "bytes": 169112
+  },
+  "pendant": {
+    "src": "modern_ceiling_lamp_01",
+    "title": "Modern Ceiling Lamp 01",
+    "authors": [
+      "James Ray Cock"
+    ],
+    "license": "CC0 1.0",
+    "source": "https://polyhaven.com/a/modern_ceiling_lamp_01",
+    "bytes": 77716
+  },
+  "aircon": {
+    "src": "exterior_aircon_unit",
+    "title": "Exterior Aircon Unit",
+    "authors": [
+      "Monsta3D"
+    ],
+    "license": "CC0 1.0",
+    "source": "https://polyhaven.com/a/exterior_aircon_unit",
+    "bytes": 1268564
+  }
+}

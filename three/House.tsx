@@ -89,8 +89,9 @@ export const WING_WALLS: WallDef[] = [
     height: WING.eave,
     thickness: S,
     openings: [
-      { a: -11.9, b: -9.9, y0: 1.15, y1: 2.35 },
-      { a: -7.3, b: -5.3, y0: 0.55, y1: 2.6 },
+      // over the sink (sill just above the worktop), and the breakfast corner
+      { a: -12.3, b: -10.3, y0: 1.15, y1: 2.35 },
+      { a: -6.7, b: -4.8, y0: 0.55, y1: 2.6 },
     ],
   },
   {

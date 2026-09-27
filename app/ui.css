@@ -2641,3 +2641,109 @@ input.sr-only:focus + .upload {
 .flow:focus {
   outline: none;
 }
+
+/* ============================================================ 3D callouts */
+/* A spec label on a leader: a point on the model, a hairline up, the label above. */
+
+.callout {
+  position: relative;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.callout__dot {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow:
+    0 0 0 3px rgba(224, 195, 152, 0.25),
+    0 0 14px rgba(224, 195, 152, 0.55);
+}
+
+.callout__line {
+  position: absolute;
+  left: -0.5px;
+  bottom: 4px;
+  width: 1px;
+  height: 46px;
+  background: linear-gradient(to top, rgba(244, 239, 231, 0.9), rgba(244, 239, 231, 0.3));
+  transform-origin: bottom;
+  animation: callout-line 0.5s var(--ease) both;
+}
+
+.callout__box {
+  position: absolute;
+  left: -1px;
+  bottom: 50px;
+  display: grid;
+  gap: 2px;
+  padding: 7px 11px 8px;
+  white-space: nowrap;
+  color: #f4efe7;
+  background: rgba(17, 16, 15, 0.74);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px -14px rgba(0, 0, 0, 0.55);
+  animation: callout-in 0.6s 0.15s var(--ease) both;
+}
+
+.callout__k {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.callout__v {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+@keyframes callout-line {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes callout-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .callout__line {
+    height: 30px;
+  }
+  .callout__box {
+    bottom: 34px;
+    padding: 5px 8px 6px;
+  }
+  .callout__v {
+    font-size: 11.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .callout__line,
+  .callout__box {
+    animation: none;
+  }
+}

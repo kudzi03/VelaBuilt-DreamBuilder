@@ -59,13 +59,84 @@ vec2 skyUv(vec3 d) {
   return vec2(fract(u), v);
 }
 
+// Blue-hour grade for the after-sunset photograph (a hazy lavender evening): richer colour,
+// and the upper sky drawn toward the deep blue a twilight exposure records.
+vec3 blueHour(vec3 c, float up) {
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  vec3 s = max(mix(vec3(l), c, 1.4), 0.0);
+  return s * mix(vec3(1.0, 0.97, 0.98), vec3(0.6, 0.78, 1.34), smoothstep(-0.02, 0.6, up));
+}
+
 vec3 skyRadiance(vec3 d) {
   vec2 uv = skyUv(d);
   vec3 a = uGainA > 0.0005 ? texture2D(uSkyA, uv).rgb * uScaleA * uGainA : vec3(0.0);
-  vec3 b = uGainB > 0.0005 ? texture2D(uSkyB, uv).rgb * uScaleB * uGainB : vec3(0.0);
+  vec3 b = uGainB > 0.0005 ? blueHour(texture2D(uSkyB, uv).rgb * uScaleB * uGainB, d.y) : vec3(0.0);
   return a + b;
 }
 `;
+
+/** CPU twin of the GLSL grade at the horizon (fog colour). */
+function blueHourHorizon(c: THREE.Color) {
+  const l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  const k = 1.4;
+  c.setRGB(Math.max(0, l + (c.r - l) * k), Math.max(0, l + (c.g - l) * k), Math.max(0, l + (c.b - l) * k));
+  return c.multiply(new THREE.Color().setRGB(0.98, 0.95, 1.0));
+}
+
+/**
+ * Horizon colour of a sky photograph by bearing (64 bins, linear radiance / scale), read once
+ * from the loaded image, so the fog in any view direction is the sky behind it.
+ */
+function horizonBins(img: CanvasImageSource & { width: number; height: number }) {
+  const W = 256;
+  const H = 128;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  if (!g) return null;
+  g.drawImage(img, 0, 0, W, H);
+  // rows from ~1.5° to ~9° above the horizon
+  const y0 = Math.floor(H / 2 - (9 / 180) * H);
+  const y1 = Math.floor(H / 2 - (1.5 / 180) * H);
+  const data = g.getImageData(0, y0, W, y1 - y0 + 1).data;
+  const bins = new Float32Array(64 * 3);
+  const lin = (v: number) => {
+    const x = v / 255;
+    return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  };
+  const rows = y1 - y0 + 1;
+  for (let x = 0; x < W; x++) {
+    const bin = Math.floor((x / W) * 64);
+    for (let r = 0; r < rows; r++) {
+      const i = (r * W + x) * 4;
+      bins[bin * 3] += lin(data[i]);
+      bins[bin * 3 + 1] += lin(data[i + 1]);
+      bins[bin * 3 + 2] += lin(data[i + 2]);
+    }
+  }
+  const n = (W / 64) * rows;
+  for (let i = 0; i < bins.length; i++) bins[i] /= n;
+  return bins;
+}
+
+/** Average horizon colour over ±35° around a bearing (world azimuth, radians). */
+function horizonAt(bins: Float32Array | null, azimuth: number, scale: number, out: THREE.Color) {
+  out.setRGB(0, 0, 0);
+  if (!bins) return out;
+  let wsum = 0;
+  for (let k = -6; k <= 6; k++) {
+    const az = azimuth + (k / 6) * 0.61;
+    const u = (((az - SKY_ROTATION) / (Math.PI * 2) + 0.5) % 1 + 1) % 1;
+    const b = Math.floor(u * 64) % 64;
+    const w = 1 - Math.abs(k) / 7;
+    out.r += bins[b * 3] * w;
+    out.g += bins[b * 3 + 1] * w;
+    out.b += bins[b * 3 + 2] * w;
+    wsum += w;
+  }
+  return out.multiplyScalar(scale / wsum);
+}
 
 const DOME_VERT = /* glsl */ `
 varying vec3 vDir;
@@ -141,10 +212,13 @@ void main() {
   float hills = 0.2 + 1.55 * pow(ridge(az, 4.7, 2.0, 5), 1.3);
   float trees = 0.05 + 0.34 * ridge(az, 23.0, 3.0, 3) + 0.22 * ridge(az, 190.0, 4.0, 2);
 
+  // land is the horizon's own colour, darkened and cooled by distance (aerial perspective):
+  // silhouettes stay readable without ever going black between the nearer trees
   vec3 lit = uLandDark * (1.0 + uLandLit * (1.0 - toSun) * 2.2);
-  if (elev < far) col = mix(horizon, mix(lit, horizon, 0.55), 0.62 + 0.25 * toSun);
-  if (elev < hills) col = mix(horizon, mix(lit, horizon, 0.3), 0.72 + 0.2 * toSun);
-  if (elev < trees) col = mix(horizon, uLandDark * 0.55, 0.78 + 0.12 * toSun);
+  vec3 land = horizon * vec3(0.3, 0.34, 0.4) + lit * 0.4;
+  if (elev < far) col = mix(land, horizon, 0.78 - 0.1 * toSun);
+  if (elev < hills) col = mix(land, horizon, 0.6 - 0.12 * toSun);
+  if (elev < trees) col = mix(land, horizon, 0.4 - 0.1 * toSun);
   if (elev < 0.0) col = uGround;
 
   gl_FragColor = vec4(col, 1.0);
@@ -177,8 +251,13 @@ void main() {
 }
 `;
 
-function loadSky(url: string) {
-  const t = new THREE.TextureLoader().load(url, () => markShadowsDirty(1));
+const HORIZON: { a: Float32Array | null; b: Float32Array | null } = { a: null, b: null };
+
+function loadSky(url: string, key?: "a" | "b") {
+  const t = new THREE.TextureLoader().load(url, (tex) => {
+    markShadowsDirty(1);
+    if (key) HORIZON[key] = horizonBins(tex.image as HTMLImageElement);
+  });
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = THREE.RepeatWrapping;
   t.wrapT = THREE.ClampToEdgeWrapping;
@@ -197,7 +276,7 @@ export function Atmosphere() {
   const dome = useRef<THREE.Mesh>(null);
 
   const skySize = tier === "high" ? 2048 : tier === "medium" ? 2048 : 1024;
-  const textures = useMemo(() => ({ a: loadSky(`/assets/env/sky_sunset_${skySize}.webp`), b: loadSky(`/assets/env/sky_dusk_${skySize}.webp`) }), [skySize]);
+  const textures = useMemo(() => ({ a: loadSky(`/assets/env/sky_sunset_${skySize}.webp`, "a"), b: loadSky(`/assets/env/sky_dusk_${skySize}.webp`, "b") }), [skySize]);
   useEffect(() => {
     SKY_UNIFORMS.uSkyA.value = textures.a;
     SKY_UNIFORMS.uSkyB.value = textures.b;
@@ -301,8 +380,17 @@ export function Atmosphere() {
     bounce.multiply(ground.clone().multiplyScalar(6));
     u.uGround.value.copy(bounce);
     ibl.mat.uniforms.uGround.value.copy(bounce);
-    // fog = horizon haze averaged round the compass
-    fog.color.copy(horizonA).multiplyScalar(g.a * 0.55).add(tmp.c2.copy(horizonB).multiplyScalar(g.b * 0.5));
+    // fog = the sky just above the horizon in the direction we are looking (distant trees and
+    // hills dissolve into the sky behind them); the compass average until the images are read
+    camera.getWorldDirection(tmp.v);
+    const az = Math.atan2(tmp.v.z, tmp.v.x);
+    if (HORIZON.a && HORIZON.b) {
+      horizonAt(HORIZON.a, az, SKY.sunset.scale * g.a, fog.color);
+      fog.color.add(blueHourHorizon(horizonAt(HORIZON.b, az, SKY.dusk.scale * g.b, tmp.c2)));
+      fog.color.multiplyScalar(0.92);
+    } else {
+      fog.color.copy(horizonA).multiplyScalar(g.a * 0.55).add(tmp.c2.copy(horizonB).multiplyScalar(g.b * 0.5));
+    }
     if (dome.current) dome.current.position.copy(camera.position);
 
     // re-bake the environment when the light has changed enough to see

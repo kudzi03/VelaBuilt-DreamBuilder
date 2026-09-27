@@ -8,7 +8,7 @@ import * as THREE from "three";
  * range falloff, using three's own BRDF functions.
  */
 
-export const MAX_LAMPS = 24;
+export const MAX_LAMPS = 32;
 export type LampGroup = "interior" | "exterior" | "kitchen" | "garden";
 const BIT: Record<LampGroup, number> = { interior: 1, exterior: 2, kitchen: 4, garden: 8 };
 
@@ -95,6 +95,8 @@ for (int i = 0; i < VB_MAX_LAMPS; i++) {
 /** Make a standard/physical material respond to lamps of the given groups. Chains with other patches. */
 export function lampLit<T extends THREE.MeshStandardMaterial>(mat: T, groups: LampGroup[] = ["interior"]): T {
   const mask = groups.reduce((m, g) => m | BIT[g], 0);
+  // interior probes find the materials they light by this tag
+  mat.userData.lampGroups = groups;
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (s, r) => {
     prev?.call(mat, s, r);

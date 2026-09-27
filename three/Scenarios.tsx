@@ -8,7 +8,6 @@ import { Hvac } from "./Hvac";
 import { Kitchen } from "./Kitchen";
 import { Solar } from "./Solar";
 import { Steel } from "./Steel";
-import { prefetch } from "./textures";
 
 type Layer = "garden" | "hvac" | "solar" | "steel" | "kitchen";
 const FOR: Record<IndustryId, Layer | null> = { landscaping: "garden", hvac: "hvac", solar: "solar", steel: "steel", remodeling: "kitchen", roofing: null };
@@ -25,7 +24,6 @@ export function Scenarios() {
 
   useEffect(() => {
     if (!sceneReady) return;
-    prefetch(["wood_floor", "oak_veneer_01", "wood_floor_deck"]);
     let i = 0;
     let t: ReturnType<typeof setTimeout>;
     const next = () => {

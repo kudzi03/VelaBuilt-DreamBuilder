@@ -202,20 +202,26 @@ export const PATIO_AREA_M2 = (GARDEN.patio.x1 - GARDEN.patio.x0) * (GARDEN.patio
 
 /* ------------------------------------------------------------------ kitchen */
 
+/**
+ * The kitchen pavilion (the wing). Worktop runs on the gable wall (south) and the east wall,
+ * a bank of tall units on the east wall, an island, and the glass wall to the garden.
+ * Heights are above the finished floor.
+ */
 export const KITCHEN = {
   ix0: WING.x0 + WALL,
   ix1: WING.x1 - WALL,
   iz0: WING.z0 + WALL,
   iz1: MAIN.z0,
-  baseH: 0.9,
+  plinth: 0.1,
+  top: 0.94, // worktop surface
+  counterT: 0.03,
   baseD: 0.62,
-  counterT: 0.04,
-  upperY0: 1.55,
-  upperY1: 2.35,
-  upperD: 0.36,
-  runZ0: WING.z0 + WALL,
-  runZ1: -8.2,
-  backX0: 1.7,
-  window: { z0: -11.9, z1: -9.9, y0: 1.2, y1: 2.35 },
-  island: { cx: 3.0, z0: -12.1, z1: -9.4, w: 1.05 },
+  /** tall units and slab backsplash stop here (the gable clerestory sill) */
+  datum: 2.47,
+  southRun: { x0: -0.2 },
+  eastRun: { z1: -9.5 },
+  tall: { z0: -9.5, z1: -7.1 },
+  sink: { z: -11.3 },
+  cooktop: { x: 2.5 },
+  island: { x0: 2.66, x1: 3.86, z0: -12.0, z1: -8.8 },
 } as const;

@@ -100,6 +100,15 @@
     },
     "Leather037": {
       "use": "Bar stool upholstery"
+    },
+    "Marble019": {
+      "use": "Worktop and slab backsplash: Calacatta"
+    },
+    "Granite002A": {
+      "use": "Worktop: black granite (graded dark)"
+    },
+    "Marble025": {
+      "use": "Large-format porcelain floor (composited 1200x600 tiles)"
     }
   },
   "polyhaven_models": {

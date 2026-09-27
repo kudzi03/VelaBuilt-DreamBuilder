@@ -94,11 +94,18 @@ def pack(pid):
     files = {}
     for px in (full, full // 2, full // 4):
         for kind, arr in (("color", color), ("normal", normal)):
-            im = Image.fromarray((np.clip(np.nan_to_num(arr), 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA")
+            u8 = (np.clip(np.nan_to_num(arr), 0, 1) * 255 + 0.5).astype(np.uint8)
+            # resize colour and alpha separately: an RGBA resize premultiplies, which turns the
+            # bled colour under transparent texels back to black (dark fringes at distance)
+            rgb = Image.fromarray(u8[..., :3], "RGB")
+            alpha = Image.fromarray(u8[..., 3], "L")
             if px != full:
-                im = im.resize((px, px), Image.LANCZOS)
+                rgb = rgb.resize((px, px), Image.LANCZOS)
+                alpha = alpha.resize((px, px), Image.LANCZOS)
+            im = Image.merge("RGBA", (*rgb.split(), alpha))
             path = os.path.join(OUT, f"{pid}_{kind}_{px}.webp")
-            im.save(path, "WEBP", quality=84 if kind == "color" else 80, alpha_quality=90, method=6)
+            # exact: keep RGB under zero alpha (libwebp discards it by default), mips stay clean
+            im.save(path, "WEBP", quality=84 if kind == "color" else 80, alpha_quality=90, method=6, exact=True)
             files.setdefault(str(px), {})[kind] = os.path.getsize(path)
     return {"N": N, "radius": round(meta["radius"], 4), "height": round(meta["height"], 4), "center": [round(c, 4) for c in meta["center"]], "px": [full, full // 2, full // 4], "bytes": files}
 

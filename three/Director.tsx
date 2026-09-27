@@ -1,5 +1,6 @@
 "use client";
 
+import { WALL, WING } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty } from "./Atmosphere";
 import { setLampLevels, updateLampViewPositions } from "./lamps";
@@ -30,6 +31,9 @@ function approach(cur: number, target: number, speed: number, dt: number) {
   return cur + step;
 }
 
+/** The kitchen is shown just after sunset: lamps carry the room, the garden goes blue. */
+export const REMODEL_DUSK = 0.62;
+
 /**
  * Time of day per moment (0 golden hour → 1 blue hour). The arrival and the reveal are
  * twilight shots — warm windows against a darkening sky — the showrooms sit in golden light.
@@ -38,7 +42,7 @@ function duskFor(phase: string, ind: string | null, evening: boolean) {
   if (phase === "reveal") return 0.9;
   if (phase === "intro" || phase === "loading") return 0.84;
   if (ind === "landscaping") return evening ? 1 : 0.16;
-  if (ind === "remodeling") return 0.5;
+  if (ind === "remodeling") return REMODEL_DUSK;
   if (ind === "hvac") return 0.3;
   return 0.12;
 }
@@ -52,8 +56,9 @@ export function targetsFor(): Record<ChannelKey, number> {
     dusk: duskFor(s.phase, ind, s.landscaping.evening),
     cut: ind === "steel" || ind === "hvac" ? 0 : 1,
     ghost: ind === "hvac" ? 1 : ind === "steel" && s.steel.ghost ? 0.4 : 0,
-    wingLift: ind === "remodeling" ? 1 : 0,
-    glassWall: ind === "remodeling" ? 0 : 1,
+    // the camera walks into the kitchen now; the roof stays on
+    wingLift: 0,
+    glassWall: 1,
     steel: ind === "steel" ? 1 : 0,
     solar: ind === "solar" || (reveal && (s.engagement.solar?.actions ?? 0) > 0) ? 1 : 0,
     hvac: ind === "hvac" ? 1 : 0,
@@ -108,9 +113,14 @@ export function Director() {
     });
 
     U.cutY.value = -0.4 + channels.cut * 10.2;
+    U.cutGlow.value = Math.min(1, Math.abs(channels.cut - t.cut) * 6);
     U.ghost.value = channels.ghost;
     U.dusk.value = channels.dusk;
-    fades.glassWall.value = channels.glassWall;
+    // the pavilion's glass wall dissolves only while the camera passes through it
+    const cam = state.camera.position;
+    const inSpan = cam.z > -13.8 && cam.z < -4.2 && cam.y < WING.eave + 0.5;
+    const through = inSpan ? Math.min(1, Math.max(0, (Math.abs(cam.x - (WING.x0 + WALL / 2)) - WALL / 2 - 0.1) / 0.6)) : 1;
+    fades.glassWall.value = Math.min(channels.glassWall, through * through * (3 - 2 * through));
     const lift = channels.wingLift;
     fades.wingRoof.value = 1 - Math.min(1, Math.max(0, (lift - 0.45) / 0.45));
     U.airColor.value.set(s.hvac.mode === "heat" ? "#e3874a" : "#4f9fd6");

@@ -75,7 +75,8 @@ export const ERECTION_STEPS = [
 
 const COL_X = [MAIN.x0, -2, 2, MAIN.x1];
 const TRUSS_X = [-6, -4, -2, 0, 2, 4, 6];
-const WING_FRAME_Z = [MAIN.z0 - 0.35, -7.35, -10.7, WING.z0];
+// portal frames of the kitchen wing: clear of the sink window (z -12.3…-10.3) and the tall units
+const WING_FRAME_Z = [MAIN.z0 - 0.35, -7.35, -9.9, WING.z0];
 
 function topChordY(z: number) {
   return MAIN.eave + (MAIN_HALF - Math.abs(z - MAIN_RIDGE_Z)) * MAIN_TAN;

@@ -1,4 +1,26 @@
 {
+ "black_granite": {
+  "meters": [
+   1.2,
+   1.2
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "honed black granite (from a pale granite scan)",
+  "mean": [
+   0.066,
+   0.0674,
+   0.0693
+  ],
+  "bytes": 496472
+ },
  "boucle": {
   "meters": [
    0.4,
@@ -45,8 +67,8 @@
  },
  "calacatta": {
   "meters": [
-   1.6,
-   1.6
+   2.0,
+   2.0
   ],
   "maps": [
    "color",
@@ -59,11 +81,11 @@
   ],
   "note": "",
   "mean": [
-   0.4924,
-   0.4775,
-   0.4911
+   0.8439,
+   0.8281,
+   0.8089
   ],
-  "bytes": 2033168
+  "bytes": 392480
  },
  "cedar": {
   "meters": [
@@ -485,8 +507,8 @@
  },
  "porcelain": {
   "meters": [
-   1.0,
-   1.0
+   2.4,
+   1.2
   ],
   "maps": [
    "color",
@@ -497,13 +519,13 @@
    1024,
    512
   ],
-  "note": "",
+  "note": "large-format porcelain 1200x600, stack bond",
   "mean": [
-   0.9656,
-   0.9645,
-   0.9626
+   0.639,
+   0.6245,
+   0.6116
   ],
-  "bytes": 401774
+  "bytes": 102574
  },
  "seam": {
   "meters": [
@@ -543,16 +565,16 @@
   ],
   "note": "architectural shingles, greyscale, tint with material.color",
   "mean": [
-   0.2844,
-   0.2844,
-   0.2844
+   0.264,
+   0.264,
+   0.264
   ],
-  "bytes": 1231634
+  "bytes": 1276114
  },
  "shingle_worn": {
   "meters": [
-   2.0,
-   2.0
+   3.0,
+   3.0
   ],
   "maps": [
    "color",
@@ -563,13 +585,13 @@
    1024,
    512
   ],
-  "note": "weathered shingles with lichen (before)",
+  "note": "weathered architectural shingles (before)",
   "mean": [
-   0.1659,
-   0.138,
-   0.0907
+   0.3046,
+   0.2927,
+   0.256
   ],
-  "bytes": 982790
+  "bytes": 1241844
  },
  "slate": {
   "meters": [
@@ -631,11 +653,11 @@
   ],
   "note": "greyscale, tint with material.color",
   "mean": [
-   0.3534,
-   0.3534,
-   0.3534
+   0.3496,
+   0.3496,
+   0.3496
   ],
-  "bytes": 310914
+  "bytes": 369328
  },
  "walnut": {
   "meters": [

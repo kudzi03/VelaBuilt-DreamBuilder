@@ -8,7 +8,7 @@ import { ROOF_ISSUES, ROOF_MATERIAL_BY_ID } from "@/lib/options";
 import { MAIN, MAIN_RIDGE_Y, MAIN_RIDGE_Z, ROOF_PLANE_BY_ID, ROOF_PLANES, WING, WING_RIDGE_X, WING_RIDGE_Y, type RoofPlane, type RoofSectionId } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { box, merge, planeMatrix, roofBody, roofSurface, type Placed } from "./geom";
-import { metalPan, roofTile, shingles, slate } from "./proc";
+import { pbr, tintFor, type TexId } from "./materials";
 import { channels, depthFor, fades, lazyCache, patch, wipes } from "./shared";
 
 export const ROOF_T = 0.2;
@@ -63,40 +63,28 @@ function ridgeCaps(): { main: Placed[]; wing: Placed[] } {
 }
 
 type Kind = "shingle" | "metal" | "tile" | "slate";
+const TEX: Record<Kind, TexId> = { shingle: "shingle", metal: "seam", tile: "tile_roof", slate: "slate" };
 
+/** CC0-based sets (scripts/assets/build_textures.py) at true scale; UVs are metres along the eave and up the slope. */
 function makeSurfaceMaterial(kind: Kind, fade?: { value: number }) {
   const base = { cut: "solid" as const, wipe: { side: "after" as const, u: wipes.roof }, fade };
-  switch (kind) {
-    case "shingle": {
-      const t = shingles(false);
-      return patch(new THREE.MeshStandardMaterial({ map: t.map, normalMap: t.normalMap, roughness: 0.9, color: "#3c3d40" }), base);
-    }
-    case "metal": {
-      const t = metalPan();
-      return patch(new THREE.MeshStandardMaterial({ map: t.map, normalMap: t.normalMap, normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.42, metalness: 0.55, color: "#27282b" }), base);
-    }
-    case "tile": {
-      const t = roofTile();
-      return patch(new THREE.MeshStandardMaterial({ map: t.map, normalMap: t.normalMap, roughness: 0.78, color: "#a2553b" }), base);
-    }
-    case "slate": {
-      const t = slate();
-      return patch(new THREE.MeshStandardMaterial({ map: t.map, normalMap: t.normalMap, roughness: 0.62, color: "#33373d" }), base);
-    }
-  }
+  if (kind === "metal") return patch(pbr("seam", { metalMap: true, normalScale: 0.6 }), base);
+  return patch(pbr(TEX[kind], { normalScale: kind === "shingle" ? 1.2 : 1 }), base);
 }
 
 /** Tuned so the colour on the roof reads as the swatch the customer picked, even in low warm sun. */
 function tuneForColor(m: THREE.MeshStandardMaterial, kind: Kind, colorId: string, hexColor: string) {
-  m.color.set(hexColor);
+  // greyscale sets are tinted so their average is the swatch
+  tintFor(TEX[kind], hexColor, m.color);
   const dark = new THREE.Color(hexColor).getHSL({ h: 0, s: 0, l: 0 }).l < 0.2;
   m.envMapIntensity = dark ? 0.55 : 0.9;
   if (kind === "metal") {
+    // the seam set carries roughness 0.5 and metal 1 in its maps: factors scale them
     const bright = colorId === "galvalume";
-    m.metalness = bright ? 0.8 : dark ? 0.12 : 0.4;
-    m.roughness = bright ? 0.34 : dark ? 0.82 : 0.5;
+    m.metalness = bright ? 0.85 : dark ? 0.15 : 0.45;
+    m.roughness = (bright ? 0.32 : dark ? 0.78 : 0.5) / 0.5;
   } else {
-    m.roughness = dark ? 0.95 : 0.85;
+    m.roughness = dark ? 1.08 : 1;
   }
 }
 
@@ -136,10 +124,7 @@ export function Roof() {
   const mats = useMemo(() => {
     const kind = (k: Kind, wing: boolean) => lazy.get(`${k}${wing}`, () => makeSurfaceMaterial(k, wing ? fades.wingRoof : undefined)) as THREE.MeshStandardMaterial;
     const worn = (wing: boolean) =>
-      lazy.get(`worn${wing}`, () => {
-        const t = shingles(true);
-        return patch(new THREE.MeshStandardMaterial({ map: t.map, normalMap: t.normalMap, roughness: 0.95 }), { cut: "solid", wipe: { side: "before", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined });
-      }) as THREE.MeshStandardMaterial;
+      lazy.get(`worn${wing}`, () => patch(pbr("shingle_worn", { normalScale: 1.3, envMapIntensity: 0.6 }), { cut: "solid", wipe: { side: "before", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined })) as THREE.MeshStandardMaterial;
     const trim = patch(new THREE.MeshStandardMaterial({ color: "#232427", roughness: 0.5, metalness: 0.3 }), { cut: "solid" });
     const trimWing = patch(new THREE.MeshStandardMaterial({ color: "#232427", roughness: 0.5, metalness: 0.3 }), { cut: "solid", fade: fades.wingRoof });
     const cap = patch(new THREE.MeshStandardMaterial({ color: "#2c2d30", roughness: 0.6 }), { cut: "solid", wipe: { side: "after", u: wipes.roof } });

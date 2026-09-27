@@ -9,49 +9,95 @@ import type { IndustryId } from "@/lib/industries";
 import { useDemo, type Insets } from "@/lib/store";
 
 type V3 = [number, number, number];
+
+/**
+ * A shot is a photograph: where the camera stands, what it looks at, the lens. Ground-level
+ * shots keep the camera level (verticals stay vertical) and frame the subject with lens shift —
+ * an off-axis projection, like a shift lens — which is also how the subject is moved clear of
+ * the UI. The camera itself never moves to make room for a panel.
+ */
 export interface Shot {
+  pos: V3;
+  /** the subject: lands in the middle of the area the UI leaves free */
   target: V3;
-  azimuth: number;
-  polar: number;
-  /** radius of the subject that must stay in frame */
-  radius: number;
+  /** keep the camera level and use rise/fall instead of tilting (architectural views) */
+  level?: boolean;
+  /** vertical field of view on a landscape screen, degrees */
+  fov: number;
+  /** subject size (metres, at the target) that must stay in frame on any screen */
+  fit: [number, number];
+  /** how far the subject may reach under side/bottom UI (0 = never, 1 = ignore it) — hero copy sits over sky */
+  overlap?: number;
+  /** how far the visitor may swing round (radians) */
   orbit?: number;
+  /** polar range around the shot [down, up] (radians) */
+  tilt?: [number, number];
+  /** dolly range as factors of the shot distance */
+  zoom?: [number, number];
+  /** portrait phones: an alternative stand-point (same target) */
+  portrait?: { pos: V3; fov?: number; target?: V3 };
 }
 
 export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal", Shot> = {
-  hero: { target: [0.6, 3.2, -4.2], azimuth: 0.66, polar: 1.3, radius: 10.9, orbit: 0.9 },
-  roofing: { target: [0.2, 6.3, -2.8], azimuth: 0.4, polar: 1.02, radius: 10.2 },
-  solar: { target: [0.4, 6.3, 1.4], azimuth: 0.36, polar: 1.0, radius: 8.4 },
-  remodeling: { target: [2.7, 1.05, -10.2], azimuth: -1.4, polar: 0.84, radius: 5.4 },
-  landscaping: { target: [-6.6, 0.3, -9.8], azimuth: -1.72, polar: 0.8, radius: 9.2 },
-  hvac: { target: [0.4, 3.7, -4.3], azimuth: 0.74, polar: 1.1, radius: 11.4 },
-  steel: { target: [0.6, 4.3, -4.6], azimuth: -0.4, polar: 1.0, radius: 11.2 },
-  flow: { target: [0.3, 3.4, -4.6], azimuth: 0.95, polar: 1.18, radius: 13.5, orbit: 1.2 },
-  reveal: { target: [-0.8, 3.0, -4.8], azimuth: 0.52, polar: 1.3, radius: 13.2, orbit: 1.2 },
+  // twilight, across the pool to the pavilion and the house
+  hero: { pos: [-15.2, 1.25, -16.8], target: [-2.9, 3.4, -4.9], level: true, fov: 42, fit: [17, 9], overlap: 0.5, orbit: 0.35, tilt: [0.12, 0.08], zoom: [0.8, 1.15], portrait: { pos: [-16.5, 1.35, -19.5], fov: 50, target: [-3.4, 3.9, -5.4] } },
+  roofing: { pos: [15.5, 12.5, 21], target: [0.6, 5.2, 0.4], fov: 36, fit: [17, 12], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
+  solar: { pos: [9.5, 13.5, 20.5], target: [0.2, 6.2, 1.8], fov: 34, fit: [14, 9], orbit: 0.45, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
+  // standing at the dining end, looking down the pavilion: island, gable wall, garden glass on the left
+  remodeling: { pos: [0.3, 1.45, -4.55], target: [2.6, 1.85, -11.6], level: true, fov: 50, fit: [7, 3.4], orbit: 0.4, tilt: [0.12, 0.12], zoom: [0.8, 1.02] },
+  landscaping: { pos: [-15.8, 3.1, -16.4], target: [-6.4, 0.9, -8.4], fov: 42, fit: [15, 8], orbit: 0.4, tilt: [0.25, 0.15], zoom: [0.75, 1.2] },
+  hvac: { pos: [-15.5, 9.5, 14], target: [0.2, 3.2, -2.6], fov: 38, fit: [19, 11], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
+  steel: { pos: [17, 9.5, 15.5], target: [0.3, 4.0, -3.5], fov: 38, fit: [22, 12], orbit: 0.55, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
+  flow: { pos: [-17.5, 1.6, -19.5], target: [-2.6, 3.6, -4.6], level: true, fov: 42, fit: [25, 12], orbit: 0.3 },
+  reveal: { pos: [-19.5, 1.7, -22.5], target: [-2.4, 3.8, -4.2], level: true, fov: 40, fit: [27, 13], orbit: 0.3 },
 };
 
-export function fovFor(w: number, h: number) {
-  return w / h < 0.8 ? 44 : 36;
-}
-
-/** Distance + focal offset that keep a sphere of `radius` centred in the unobstructed area. */
-export function frame(shot: Shot, w: number, h: number, insets: Insets, fov: number) {
-  const availW = Math.max(120, w - insets.left - insets.right);
-  const availH = Math.max(120, h - insets.top - insets.bottom);
-  const t = Math.tan((fov * Math.PI) / 360);
+/** Where to stand, the lens, and the shift that puts the subject in the middle of the free area. */
+export function frame(shot: Shot, w: number, h: number, insets: Insets) {
+  const alt = w / h < 0.8 ? shot.portrait : undefined;
+  const subject = new THREE.Vector3(...(alt?.target ?? shot.target));
+  const from = new THREE.Vector3(...(alt?.pos ?? shot.pos));
+  const baseFov = alt?.fov ?? shot.fov;
+  const level = !!shot.level;
   const aspect = w / h;
+  const k = 1 - (shot.overlap ?? 0);
+  const ins = { top: insets.top, right: insets.right * k, bottom: insets.bottom * k, left: insets.left * k };
+  const availW = Math.max(120, w - ins.left - ins.right);
+  const availH = Math.max(120, h - ins.top - ins.bottom);
   const fx = availW / w;
   const fy = availH / h;
-  const dist = Math.max(shot.radius / (t * fy), shot.radius / (t * aspect * fx)) * 1.02;
-  const cx = ((insets.left + availW / 2) / w) * 2 - 1;
-  const cy = 1 - ((insets.top + availH / 2) / h) * 2;
-  // camera-controls applies focalOffset.y inverted (camera moves down for +y), so y keeps the sign of cy
-  return { dist, offX: -cx * dist * t * aspect, offY: cy * dist * t };
+  const dir = from.clone().sub(subject);
+  if (level) dir.y = 0;
+  const d0 = dir.length();
+  dir.normalize();
+  const need = (d: number) => Math.max(shot.fit[1] / (2 * d * fy), shot.fit[0] / (2 * d * fx * aspect));
+  let t = Math.tan(THREE.MathUtils.degToRad(baseFov) / 2);
+  let dist = d0;
+  if (need(d0) > t) {
+    // step back first (a photographer would), then widen the lens
+    dist = Math.min(d0 * 1.3, (d0 * need(d0)) / t);
+    t = Math.max(t, need(dist));
+  }
+  const fov = Math.min(72, THREE.MathUtils.radToDeg(2 * Math.atan(t)));
+  const tt = Math.tan(THREE.MathUtils.degToRad(fov) / 2);
+  const pos = subject.clone().addScaledVector(dir, dist);
+  if (level) pos.y = from.y;
+  // level shots pivot at eye height; the subject sits above (or below) the horizon
+  const look = level ? new THREE.Vector3(subject.x, from.y, subject.z) : subject.clone();
+  const yFull = level ? (subject.y - from.y) / dist / tt : 0;
+  // centre of the free area in NDC
+  const cx = ((ins.left + availW / 2) / w) * 2 - 1;
+  const cy = 1 - ((ins.top + availH / 2) / h) * 2;
+  return { pos, look, dist, fov, shift: [-cx, cy - yFull] as [number, number] };
 }
 
-function spherical(shot: Shot, az: number, polar: number, dist: number): V3 {
-  const [tx, ty, tz] = shot.target;
-  return [tx + dist * Math.sin(polar) * Math.sin(az), ty + dist * Math.cos(polar), tz + dist * Math.sin(polar) * Math.cos(az)];
+/** Off-axis projection: shift in NDC units (x: +left, y: +up of the subject's full-frame position). */
+function setShift(cam: THREE.PerspectiveCamera, w: number, h: number, sx: number, sy: number) {
+  if (Math.abs(sx) < 1e-4 && Math.abs(sy) < 1e-4) {
+    if (cam.view?.enabled) cam.clearViewOffset();
+    return;
+  }
+  cam.setViewOffset(w, h, (sx * w) / 2, (sy * h) / 2, w, h);
 }
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -77,7 +123,9 @@ export function CameraRig() {
   const reducedMotion = useDemo((s) => s.reducedMotion);
   const arrival = useRef({ active: true, t: 0 });
   const interacting = useRef(false);
-  const lastShotKey = useRef("");
+  const idle = useRef({ t: 0, base: new THREE.Vector3(), right: new THREE.Vector3(), key: "" });
+  // lens: focal length and shift ease together with the move
+  const lens = useRef({ from: [36, 0, 0], to: [36, 0, 0], t: 1 });
 
   const shotKey: keyof typeof SHOTS =
     phase === "reveal" ? "reveal" : phase === "flow" ? (industry ?? "flow") : phase === "explore" || phase === "qualify" ? (industry ?? "hero") : "hero";
@@ -86,8 +134,8 @@ export function CameraRig() {
     (transition: boolean) => {
       const c = cc.current;
       if (!c) return;
+      const cam = camera as THREE.PerspectiveCamera;
       if (DEBUG_CAM) {
-        const cam = camera as THREE.PerspectiveCamera;
         if (DEBUG_CAM.fov) {
           cam.fov = DEBUG_CAM.fov;
           cam.updateProjectionMatrix();
@@ -100,30 +148,40 @@ export function CameraRig() {
         c.maxAzimuthAngle = Infinity;
         c.setLookAt(...DEBUG_CAM.cam, ...DEBUG_CAM.look, false);
         c.setFocalOffset(0, 0, 0, false);
+        setShift(cam, size.width, size.height, 0, 0);
         return;
       }
       const shot = SHOTS[shotKey];
-      const cam = camera as THREE.PerspectiveCamera;
-      const fov = fovFor(size.width, size.height);
-      if (cam.fov !== fov) {
-        cam.fov = fov;
+      const f = frame(shot, size.width, size.height, insets);
+      const smooth = transition && !reducedMotion;
+      // lens changes ride along with the move rather than snapping
+      const now = lens.current.t < 1 ? lens.current.to : [cam.fov, ...(lens.current.to.slice(1) as [number, number])];
+      lens.current = { from: [...now], to: [f.fov, ...f.shift], t: smooth ? 0 : 1 };
+      if (!smooth) {
+        cam.fov = f.fov;
+        setShift(cam, size.width, size.height, ...f.shift);
         cam.updateProjectionMatrix();
       }
-      const f = frame(shot, size.width, size.height, insets, fov);
-      // pick the azimuth equivalent closest to where we are, so moves take the short way round
-      const cur = c.azimuthAngle;
-      const az = shot.azimuth + Math.round((cur - shot.azimuth) / (Math.PI * 2)) * Math.PI * 2;
-      const range = shot.orbit ?? 0.7;
-      c.minAzimuthAngle = az - range;
-      c.maxAzimuthAngle = az + range;
-      c.minPolarAngle = Math.max(0.35, shot.polar - 0.45);
-      c.maxPolarAngle = Math.min(1.48, shot.polar + 0.22);
-      c.minDistance = f.dist * 0.62;
-      c.maxDistance = f.dist * 1.45;
-      c.smoothTime = reducedMotion ? 0.08 : 0.85;
-      const p = spherical(shot, az, shot.polar, f.dist);
-      c.setLookAt(p[0], p[1], p[2], ...shot.target, transition && !reducedMotion);
-      c.setFocalOffset(f.offX, f.offY, 0, transition && !reducedMotion);
+      const off = f.pos.clone().sub(f.look);
+      const sph = new THREE.Spherical().setFromVector3(off);
+      // take the short way round
+      const az = sph.theta + Math.round((c.azimuthAngle - sph.theta) / (Math.PI * 2)) * Math.PI * 2;
+      const orbit = shot.orbit ?? 0.5;
+      const tilt = shot.tilt ?? [0.2, 0.15];
+      const zoom = shot.zoom ?? [0.8, 1.2];
+      c.minAzimuthAngle = az - orbit;
+      c.maxAzimuthAngle = az + orbit;
+      // never below eye-level-ish ground clearance, whatever the visitor does
+      const r = sph.radius;
+      const ground = Math.acos(THREE.MathUtils.clamp((0.6 - f.look.y) / (r * zoom[1]), -1, 1));
+      c.minPolarAngle = Math.max(0.2, sph.phi - tilt[1]);
+      c.maxPolarAngle = Math.max(sph.phi, Math.min(Math.PI / 2 + 0.12, sph.phi + tilt[0], ground));
+      c.minDistance = r * zoom[0];
+      c.maxDistance = r * zoom[1];
+      c.smoothTime = reducedMotion ? 0.05 : 1.15;
+      c.setLookAt(f.pos.x, f.pos.y, f.pos.z, f.look.x, f.look.y, f.look.z, smooth);
+      c.setFocalOffset(0, 0, 0, false);
+      idle.current.key = "";
     },
     [shotKey, size.width, size.height, insets, reducedMotion, camera],
   );
@@ -140,10 +198,10 @@ export function CameraRig() {
       if (!c) return;
       arrival.current.active = false;
       const cam = camera as THREE.PerspectiveCamera;
-      if (fov) {
-        cam.fov = fov;
-        cam.updateProjectionMatrix();
-      }
+      if (fov) cam.fov = fov;
+      setShift(cam, size.width, size.height, 0, 0);
+      cam.updateProjectionMatrix();
+      lens.current = { from: [cam.fov, 0, 0], to: [cam.fov, 0, 0], t: 1 };
       c.minDistance = 0;
       c.maxDistance = Infinity;
       c.minPolarAngle = 0;
@@ -153,16 +211,13 @@ export function CameraRig() {
       c.setFocalOffset(0, 0, 0, false);
       c.setLookAt(...p, ...t, false);
     };
-  }, [camera]);
+  }, [camera, size.width, size.height]);
 
   // shot changes (industry / phase / layout)
   useEffect(() => {
-    if (arrival.current.active && shotKey === "hero") return;
+    if (arrival.current.active && shotKey === "hero" && !DEBUG_CAM) return;
     arrival.current.active = false;
-    const key = `${shotKey}`;
-    const changedShot = key !== lastShotKey.current;
-    lastShotKey.current = key;
-    apply(changedShot || true);
+    apply(true);
   }, [shotKey, apply]);
 
   // controls feel
@@ -177,10 +232,10 @@ export function CameraRig() {
     c.touches.one = A.TOUCH_ROTATE;
     c.touches.two = A.TOUCH_DOLLY;
     c.touches.three = A.NONE;
-    c.draggingSmoothTime = 0.14;
-    c.azimuthRotateSpeed = 0.55;
-    c.polarRotateSpeed = 0.45;
-    c.dollySpeed = 0.5;
+    c.draggingSmoothTime = 0.18;
+    c.azimuthRotateSpeed = 0.42;
+    c.polarRotateSpeed = 0.32;
+    c.dollySpeed = 0.4;
     c.dollyToCursor = false;
     const start = () => {
       interacting.current = true;
@@ -188,6 +243,7 @@ export function CameraRig() {
     };
     const end = () => {
       interacting.current = false;
+      idle.current.key = "";
     };
     c.addEventListener("controlstart", start);
     c.addEventListener("controlend", end);
@@ -197,10 +253,22 @@ export function CameraRig() {
     };
   }, []);
 
+  const tmp = useRef({ p: new THREE.Vector3(), t: new THREE.Vector3() });
+
   useFrame((_, delta) => {
     const c = cc.current;
     if (!c) return;
     const dt = Math.min(delta, 1 / 20);
+    const cam = camera as THREE.PerspectiveCamera;
+    // lens: ease focal length and shift with the move
+    const L = lens.current;
+    if (L.t < 1) {
+      L.t = Math.min(1, L.t + dt / 1.6);
+      const k = ease(L.t);
+      cam.fov = THREE.MathUtils.lerp(L.from[0], L.to[0], k);
+      setShift(cam, size.width, size.height, THREE.MathUtils.lerp(L.from[1], L.to[1], k), THREE.MathUtils.lerp(L.from[2], L.to[2], k));
+      cam.updateProjectionMatrix();
+    }
     const a = arrival.current;
     if (DEBUG_CAM && a.active) {
       a.active = false;
@@ -209,36 +277,51 @@ export function CameraRig() {
     }
     if (a.active) {
       const shot = SHOTS.hero;
-      const fov = fovFor(size.width, size.height);
-      const f = frame(shot, size.width, size.height, insets, fov);
+      const f = frame(shot, size.width, size.height, insets);
       if (reducedMotion) {
         a.active = false;
         apply(false);
         return;
       }
+      if (cam.fov !== f.fov || L.to[1] !== f.shift[0] || L.to[2] !== f.shift[1]) {
+        cam.fov = f.fov;
+        setShift(cam, size.width, size.height, ...f.shift);
+        cam.updateProjectionMatrix();
+        lens.current = { from: [f.fov, ...f.shift], to: [f.fov, ...f.shift], t: 1 };
+      }
       const sceneReady = useDemo.getState().sceneReady;
-      if (sceneReady) a.t = Math.min(1, a.t + dt / 6.5);
+      if (sceneReady) a.t = Math.min(1, a.t + dt / 7.5);
       const k = ease(a.t);
-      // arriving up the front path: low at the door, then rise and pull back to the hero
-      const az = THREE.MathUtils.lerp(0.12, shot.azimuth, k);
-      const pol = THREE.MathUtils.lerp(1.44, shot.polar, k);
-      const dist = THREE.MathUtils.lerp(f.dist * 0.5, f.dist, k);
-      const ty = THREE.MathUtils.lerp(2.4, shot.target[1], k);
-      const tgt: V3 = [THREE.MathUtils.lerp(0, shot.target[0], k), ty, THREE.MathUtils.lerp(1.5, shot.target[2], k)];
-      const p = spherical({ ...shot, target: tgt }, az, pol, dist);
-      c.setLookAt(p[0], p[1], p[2], tgt[0], tgt[1], tgt[2], false);
-      // offset scales with distance so the house stays clear of the headline for the whole move
-      const g = dist / f.dist;
-      c.setFocalOffset(f.offX * g, f.offY * g, 0, false);
+      // descend and settle into the shot, like a slow crane move
+      const dir = f.pos.clone().sub(f.look).setY(0).normalize();
+      const p = tmp.current.p.copy(f.pos).addScaledVector(dir, (1 - k) * 9).add(new THREE.Vector3(0, (1 - k) * 4.5, 0));
+      const t = tmp.current.t.copy(f.look).add(new THREE.Vector3(0, (1 - k) * 1.2, 0));
+      c.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, false);
       if (a.t >= 1) {
         a.active = false;
         apply(false);
       }
       return;
     }
-    // slow turntable drift on the establishing shots
+    // idle: a slow lateral drift on the establishing shots — parallax, not a turntable
     const ph = useDemo.getState().phase;
-    if (!DEBUG_CAM && !reducedMotion && !interacting.current && (ph === "intro" || ph === "reveal")) c.rotate(dt * 0.018, 0, true);
+    const I = idle.current;
+    if (DEBUG_CAM || reducedMotion || interacting.current || !(ph === "intro" || ph === "reveal")) {
+      I.key = "";
+      return;
+    }
+    if (c.active) return; // still travelling
+    if (I.key !== shotKey) {
+      I.key = shotKey;
+      I.t = 0;
+      c.getPosition(I.base);
+      const fwd = c.getTarget(new THREE.Vector3()).sub(I.base).normalize();
+      I.right.crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+    }
+    I.t += dt;
+    const s = Math.sin((I.t / 26) * Math.PI * 2) * 0.55;
+    const p = tmp.current.p.copy(I.base).addScaledVector(I.right, s);
+    c.setPosition(p.x, p.y, p.z, false);
   });
 
   return <CameraControls ref={cc} makeDefault />;

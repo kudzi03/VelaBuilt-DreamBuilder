@@ -8,6 +8,8 @@ export const U = {
   time: { value: 0 },
   /** world Y above which the solid house is removed (section sweep) */
   cutY: { value: 100 },
+  /** 0..1: a warm line where the section plane is cutting, while it moves */
+  cutGlow: { value: 0 },
   dusk: { value: 0 },
   ghost: { value: 0 },
   airColor: { value: new THREE.Color("#4f9fd6") },
@@ -53,6 +55,7 @@ export interface PatchOpts {
 
 const HEAD = /* glsl */ `
 uniform float uCutY;
+uniform float uCutGlow;
 uniform float uWipe;
 uniform float uFade;
 float vbBayer(vec2 p) {
@@ -73,6 +76,7 @@ export function patch<T extends THREE.Material>(mat: T, opts: PatchOpts): T {
   mat.onBeforeCompile = (shader, renderer) => {
     prev?.call(mat, shader, renderer);
     shader.uniforms.uCutY = U.cutY;
+    shader.uniforms.uCutGlow = U.cutGlow;
     shader.uniforms.uWipe = opts.wipe?.u ?? { value: -1 };
     shader.uniforms.uFade = opts.fade ?? { value: 1 };
     if (opts.cut) {
@@ -97,6 +101,14 @@ export function patch<T extends THREE.Material>(mat: T, opts: PatchOpts): T {
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>\n${HEAD}${opts.cut ? "varying vec3 vVbWorld;\n" : ""}`)
       .replace("void main() {", `void main() {\n${body}`);
+    if (opts.cut === "solid") {
+      // the section plane leaves a thin incandescent edge on everything it cuts through
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <opaque_fragment>",
+        `outgoingLight += vec3(1.0, 0.58, 0.26) * (1.0 - smoothstep(0.0, 0.07, uCutY - vVbWorld.y)) * uCutGlow * 2.6;
+#include <opaque_fragment>`,
+      );
+    }
   };
   const prevKey = mat.customProgramCacheKey?.bind(mat);
   mat.customProgramCacheKey = () => `${prevKey ? prevKey() : ""}${key}`;

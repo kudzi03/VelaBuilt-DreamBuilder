@@ -33,7 +33,7 @@ const COPE = 0.4;
 
 const GARDEN_LAMPS: Lamp[] = [
   // pool light, low in the water at the house end
-  { pos: [(PL.x0 + PL.x1) / 2, -0.9, (PL.z0 + PL.z1) / 2 + 1.5], color: "#b9f0ff", power: 14, range: 7.5, group: "garden" },
+  { pos: [(PL.x0 + PL.x1) / 2, -0.9, (PL.z0 + PL.z1) / 2 + 1.5], color: "#a6ecf7", power: 5.5, range: 7, group: "garden" },
   // pergola: warm downlight over the seating
   { pos: [(PG.x0 + PG.x1) / 2, PG.h - 0.35, (PG.z0 + PG.z1) / 2], color: "#ffbd78", power: 10, range: 6, group: "garden" },
   // path bollards and tree uplights
@@ -129,11 +129,11 @@ function planting(): GardenPlants {
   const core: Record<string, PlantPlacement[]> = { searsia_a: [], searsia_b: [], searsia_c: [], searsia_d: [], island: [] };
   const lush: Record<string, PlantPlacement[]> = { searsia_a: [], searsia_b: [], searsia_c: [], searsia_d: [], shrub_a: [], shrub_d: [], jacaranda: [] };
   const kinds = ["searsia_a", "searsia_b", "searsia_c", "searsia_d"];
-  // back boundary bed, behind the terrace and pool (the south-west corner stays open: the view)
-  for (let i = 0; i < 9; i++) {
-    const x = -9.2 + i * 0.95 + J(0.4);
+  // back boundary bed behind the pavilion's garden corner; the south-west stays open (the arrival view)
+  for (let i = 0; i < 6; i++) {
+    const x = -6.2 + i * 0.95 + J(0.4);
     const z = G.z0 + 0.9 + J(0.6);
-    (i % 2 ? core : lush)[kinds[i % 4]].push({ x, z, height: 1.3 + r() * 0.9, tone: J(0.3) });
+    (i % 2 ? core : lush)[kinds[i % 4]].push({ x, z, height: 0.9 + r() * 0.6, tone: J(0.3) });
   }
   // north-west bed along the garden's edge by the house
   for (let i = 0; i < 6; i++) {
@@ -142,10 +142,10 @@ function planting(): GardenPlants {
     (i % 2 ? core : lush)[kinds[(i + 1) % 4]].push({ x, z, height: 1.2 + r() * 1.0, tone: J(0.3) });
   }
   // feature tree at the pavilion's far corner; a larger tree framing the north-west
-  core.island.push({ x: -5.2, z: -15.3, height: 4.4, yaw: 0.8 });
+  core.island.push({ x: -2.4, z: -18.3, height: 4.4, yaw: 0.8 });
   lush.jacaranda.push({ x: -16.5, z: 0.5, height: 9 });
   // low planting along the pool's far side and the terrace edge
-  for (let i = 0; i < 7; i++) lush.shrub_a.push({ x: PL.x0 - 1.1 + J(0.2), z: PL.z0 + 0.6 + i * 1.15 + J(0.3), height: 0.7 + r() * 0.3 });
+  for (let i = 3; i < 7; i++) lush.shrub_a.push({ x: PL.x0 - 1.1 + J(0.2), z: PL.z0 + 0.6 + i * 1.15 + J(0.3), height: 0.7 + r() * 0.3 });
   for (let i = 0; i < 5; i++) lush.searsia_d.push({ x: P.x0 - 0.55 + J(0.2), z: P.z0 + 0.8 + i * 1.6 + J(0.3), height: 0.7 + r() * 0.25, tone: J(0.2) });
   return { core, lush };
 }
@@ -252,7 +252,7 @@ export function Garden() {
       stone: s(lit(pbr("paver_stone", { roughness: 1, envMapIntensity: 0.8 }))),
       coping: s(lit(pbr("paver_stone", { roughness: 1, envMapIntensity: 0.8 }))),
       // the shell is only ever seen through water, so it carries the water's absorption colour
-      shell: s(lampLit(pbr("pool_tile", { color: "#5fb7c4", roughness: 0.35, envMapIntensity: 0.4 }), ["garden"])),
+      shell: s(lampLit(pbr("pool_tile", { color: "#4aa6b6", roughness: 0.35, envMapIntensity: 0.4 }), ["garden"])),
       water: s(waterMaterial()),
       steel: s(lit(solid("#2a2724", 0.45, 0.7))),
       timber: s(lit(pbr("cedar", { color: "#e8d6c2", roughness: 1 }))),
