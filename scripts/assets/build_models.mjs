@@ -23,7 +23,7 @@ const MODELS = {
   board: { src: "wooden_cutting_board", tex: 512, error: 0.001 },
   aloe: { src: "potted_plant_04", tex: 512, error: 0.0015 },
   pendant: { src: "modern_ceiling_lamp_01", tex: 512, error: 0.0005 },
-  aircon: { src: "exterior_aircon_unit", tex: 1024, error: 0.0008 },
+  aircon: { src: "exterior_aircon_unit", tex: 512, error: 0.002 },
 };
 
 const credits = existsSync(join(ROOT, ".cache/assets-src/credits.json")) ? JSON.parse(readFileSync(join(ROOT, ".cache/assets-src/credits.json"), "utf8")) : {};

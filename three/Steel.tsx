@@ -10,6 +10,7 @@ import { ERECTION_STEPS, SECTIONS, buildFrame, type Member, type SectionId } fro
 import { useDemo } from "@/lib/store";
 import { detectUnits } from "@/lib/units";
 import { markShadowsDirty } from "./Atmosphere";
+import { Callout } from "./Callout";
 import { pbr, solid } from "./materials";
 import { channels } from "./shared";
 
@@ -455,20 +456,6 @@ function Pads({ points, material }: { points: THREE.Vector3[]; material: THREE.M
     im.computeBoundingSphere();
   }, [points]);
   return <instancedMesh ref={ref} args={[geo, material, points.length]} receiveShadow castShadow raycast={() => null} />;
-}
-
-/** A spec label on a leader: a point on the member, a hairline up, the label above. */
-function Callout({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="callout">
-      <span className="callout__dot" />
-      <span className="callout__line" />
-      <span className="callout__box">
-        <span className="callout__k">{k}</span>
-        <span className="callout__v">{v}</span>
-      </span>
-    </div>
-  );
 }
 
 interface CalloutSpec {

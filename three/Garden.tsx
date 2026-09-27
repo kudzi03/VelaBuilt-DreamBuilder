@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { GARDEN as G, MAIN, WING } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty, SKY_GLSL, SKY_UNIFORMS } from "./Atmosphere";
-import { box, merge, type Placed } from "./geom";
+import { box, merge, rbox, type Placed } from "./geom";
 import { buildImpostors, type PlantId, type PlantPlacement } from "./impostor";
 import { lampLit, registerLamps, unregisterLamps, updateLampViewPositions, type Lamp } from "./lamps";
 import { sharedGround } from "./Landscape";
@@ -88,34 +88,55 @@ function pergola(): { steel: Placed[]; timber: Placed[] } {
   return { steel, timber };
 }
 
-/** Low teak-framed sofa, chairs and table under the pergola; two loungers by the pool. */
+/** Teak lounge set under the pergola (modular cushions, throw pillows) and two slatted chaises by the pool. */
 function outdoorFurniture() {
   const teak: Placed[] = [];
   const cushion: Placed[] = [];
+  const accent: Placed[] = [];
   const stone: Placed[] = [];
   const cx = (PG.x0 + PG.x1) / 2;
   const cz = (PG.z0 + PG.z1) / 2;
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const one = new THREE.Vector3(1, 1, 1);
+  const put = (m: THREE.Matrix4, g: THREE.BufferGeometry, px: number, py: number, pz: number, into: Placed[], rx = 0, ry = 0, rz = 0) =>
+    into.push({ geo: g, matrix: m.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3(px, py, pz), q.setFromEuler(e.set(rx, ry, rz)), one)) });
+
   const sofa = (x: number, z: number, len: number, rotY: number) => {
     const m = new THREE.Matrix4().makeRotationY(rotY).setPosition(x, 0, z);
-    const at = (g: THREE.BufferGeometry, px: number, py: number, pz: number, into: Placed[]) => into.push({ geo: g, matrix: m.clone().multiply(new THREE.Matrix4().makeTranslation(px, py, pz)) });
-    at(box(len, 0.1, 0.86), 0, 0.2, 0, teak);
-    at(box(len, 0.36, 0.08), 0, 0.42, 0.39, teak);
-    for (const sx of [-1, 1]) at(box(0.06, 0.2, 0.86), (sx * len) / 2, 0.1, 0, teak);
-    at(box(len - 0.08, 0.14, 0.74), 0, 0.32, -0.03, cushion);
-    at(box(len - 0.1, 0.36, 0.16), 0, 0.56, 0.3, cushion);
+    const inner = len - 0.14;
+    put(m, rbox(len, 0.08, 0.9, 0.012), 0, 0.2, 0, teak); // seat deck
+    for (const sx of [-1, 1]) put(m, rbox(0.07, 0.46, 0.9, 0.02), sx * (len / 2 - 0.035), 0.37, 0, teak); // arms
+    put(m, rbox(inner, 0.4, 0.06, 0.015), 0, 0.44, 0.42, teak); // back
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(m, rbox(0.06, 0.16, 0.06, 0.008), sx * (len / 2 - 0.05), 0.08, sz * 0.39, teak);
+    const n = Math.max(1, Math.round(inner / 0.78));
+    const w = inner / n;
+    for (let i = 0; i < n; i++) {
+      const px = -inner / 2 + w * (i + 0.5);
+      put(m, rbox(w - 0.012, 0.15, 0.76, 0.05, 3), px, 0.315, -0.04, cushion); // seat
+      put(m, rbox(w - 0.012, 0.44, 0.17, 0.06, 3), px, 0.62, 0.3, cushion, -0.14); // back, leaning
+    }
+    put(m, rbox(0.42, 0.42, 0.13, 0.06, 3), -len / 2 + 0.36, 0.56, 0.16, accent, -0.28, 0.35, 0.06);
+    put(m, rbox(0.42, 0.42, 0.13, 0.06, 3), len / 2 - 0.36, 0.56, 0.16, accent, -0.28, -0.35, -0.06);
   };
   sofa(cx - 0.1, PG.z0 + 0.72, 2.6, 0);
-  sofa(PG.x0 + 0.62, cz + 0.4, 1.6, Math.PI / 2);
-  stone.push({ geo: box(1.1, 0.06, 0.7), pos: [cx - 0.05, 0.36, cz + 0.2] });
-  teak.push({ geo: box(0.9, 0.3, 0.5), pos: [cx - 0.05, 0.18, cz + 0.2] });
+  sofa(PG.x0 + 0.62, cz + 0.4, 1.7, Math.PI / 2);
+  // coffee table: honed stone on a teak plinth
+  stone.push({ geo: rbox(1.1, 0.05, 0.7, 0.008, 2), pos: [cx - 0.05, 0.365, cz + 0.2] });
+  teak.push({ geo: rbox(0.92, 0.32, 0.52, 0.01), pos: [cx - 0.05, 0.18, cz + 0.2] });
+
+  // chaises by the pool: slatted teak frame, reclined back, thick cushion
   for (const z of [PL.z0 + 2.2, PL.z0 + 3.7]) {
-    const x = PL.x1 + COPE + 0.75;
-    teak.push({ geo: box(0.72, 0.08, 1.95), pos: [x, 0.3, z] });
-    for (const [dx, dz] of [[-0.3, -0.85], [0.3, -0.85], [-0.3, 0.85], [0.3, 0.85]]) teak.push({ geo: box(0.05, 0.28, 0.05), pos: [x + dx, 0.14, z + dz] });
-    cushion.push({ geo: box(0.68, 0.07, 1.3), pos: [x, 0.37, z + 0.3] });
-    cushion.push({ geo: box(0.68, 0.07, 0.62), matrix: new THREE.Matrix4().makeRotationX(-0.6).setPosition(x, 0.52, z - 0.62) });
+    const m = new THREE.Matrix4().makeTranslation(PL.x1 + COPE + 0.75, 0, z);
+    for (const sx of [-1, 1]) put(m, rbox(0.045, 0.07, 1.96, 0.01), sx * 0.33, 0.29, 0.02, teak); // rails
+    for (let i = 0; i < 13; i++) put(m, rbox(0.62, 0.018, 0.066, 0.004), 0, 0.32, 0.95 - i * 0.1, teak); // slats
+    put(m, rbox(0.62, 0.03, 0.7, 0.008), 0, 0.5, -0.64, teak, 0.62); // back frame
+    for (const sx of [-1, 1]) for (const sz of [-0.85, 0.85]) put(m, rbox(0.05, 0.28, 0.05, 0.006), sx * 0.31, 0.14, sz, teak);
+    put(m, rbox(0.62, 0.065, 1.28, 0.03, 3), 0, 0.365, 0.3, cushion);
+    put(m, rbox(0.62, 0.055, 0.66, 0.026, 3), 0, 0.55, -0.62, cushion, 0.62);
+    put(m, rbox(0.44, 0.13, 0.28, 0.06, 3), 0, 0.72, -0.84, accent, 0.62); // head pillow
   }
-  return { teak, cushion, stone };
+  return { teak, cushion, accent, stone };
 }
 
 interface GardenPlants {
@@ -143,7 +164,7 @@ function planting(): GardenPlants {
   }
   // feature tree at the pavilion's far corner; a larger tree framing the north-west
   core.island.push({ x: -2.4, z: -18.3, height: 4.4, yaw: 0.8 });
-  lush.jacaranda.push({ x: -16.5, z: 0.5, height: 9 });
+  lush.jacaranda.push({ x: -23, z: 3, height: 9 });
   // low planting along the pool's far side and the terrace edge
   for (let i = 3; i < 7; i++) lush.shrub_a.push({ x: PL.x0 - 1.1 + J(0.2), z: PL.z0 + 0.6 + i * 1.15 + J(0.3), height: 0.7 + r() * 0.3 });
   for (let i = 0; i < 5; i++) lush.searsia_d.push({ x: P.x0 - 0.55 + J(0.2), z: P.z0 + 0.8 + i * 1.6 + J(0.3), height: 0.7 + r() * 0.25, tone: J(0.2) });
@@ -215,6 +236,7 @@ export function Garden() {
       timber: merge(pg.timber),
       teak: merge(fu.teak),
       cushion: merge(fu.cushion),
+      accent: merge(fu.accent),
       tableTop: merge(fu.stone),
       stones: merge(STONES.map(([x, z]) => ({ geo: box(0.7, 0.05, 0.45), pos: [x, 0.025, z] }))),
       bollards: merge(bollards),
@@ -258,6 +280,7 @@ export function Garden() {
       timber: s(lit(pbr("cedar", { color: "#e8d6c2", roughness: 1 }))),
       teak: s(lit(pbr("oak_veneer", { color: "#a07b58", roughness: 0.85 }))),
       cushion: s(lit(pbr("linen", { color: "#e6e0d5", roughness: 1 }))),
+      accent: s(lit(pbr("linen", { color: "#b5714f", roughness: 1 }))),
       tableTop: s(lit(pbr("concrete", { color: "#b9b2a8", roughness: 0.9 }))),
       stones: s(lit(pbr("paver_stone", { roughness: 1 }))),
       bollard: s(solid("#262422", 0.45, 0.6)),
@@ -343,6 +366,7 @@ export function Garden() {
           <mesh geometry={geo.coping} material={mats.coping} {...sh} />
           <mesh geometry={geo.teak} material={mats.teak} {...sh} />
           <mesh geometry={geo.cushion} material={mats.cushion} {...sh} />
+          <mesh geometry={geo.accent} material={mats.accent} {...sh} />
         </>
       ) : (
         <mesh geometry={geo.plug} material={mats.plug} receiveShadow />

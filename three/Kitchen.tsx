@@ -3,11 +3,10 @@
 import { useGLTF } from "@react-three/drei";
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { CabinetId, CounterId, FloorId } from "@/lib/options";
 import { FLOOR_Y, KITCHEN as K, WING, WING_RIDGE_X } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
-import { box, merge, type Placed } from "./geom";
+import { box, merge, rbox, type Placed } from "./geom";
 import { lampLit, registerLamps, unregisterLamps, type Lamp } from "./lamps";
 import { pbr, solid } from "./materials";
 import { REMODEL_DUSK } from "./Director";
@@ -46,24 +45,6 @@ const IS = K.island;
 const WIN = { z0: -12.3, z1: -10.3, y0: 1.15, y1: 2.35 }; // sink window (House.tsx, wing x+)
 
 /* ------------------------------------------------------------------ helpers */
-
-/** Box with eased edges (joinery catches the light) and metre UVs projected by face. */
-function rbox(w: number, h: number, d: number, r = 0.0025): THREE.BufferGeometry {
-  const rr = Math.max(1e-4, Math.min(r, w / 2 - 1e-4, h / 2 - 1e-4, d / 2 - 1e-4));
-  const g = new RoundedBoxGeometry(w, h, d, 1, rr);
-  const p = g.attributes.position;
-  const n = g.attributes.normal;
-  const uv = g.attributes.uv as THREE.BufferAttribute;
-  for (let i = 0; i < p.count; i++) {
-    const ax = Math.abs(n.getX(i));
-    const ay = Math.abs(n.getY(i));
-    const az = Math.abs(n.getZ(i));
-    if (ax >= ay && ax >= az) uv.setXY(i, p.getZ(i), p.getY(i));
-    else if (ay >= az) uv.setXY(i, p.getX(i), p.getZ(i));
-    else uv.setXY(i, p.getX(i), p.getY(i));
-  }
-  return g;
-}
 
 /** A run of joinery along a wall: `along` runs with the wall, `out` points into the room. */
 interface Run {

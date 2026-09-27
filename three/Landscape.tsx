@@ -129,7 +129,7 @@ function placeTrees(): Record<string, PlantPlacement[]> {
   const out: Record<string, PlantPlacement[]> = { jacaranda: [], fir_a: [], fir_b: [], fir_c: [], island: [], searsia_a: [], searsia_b: [], searsia_c: [], searsia_d: [], shrub_a: [], shrub_d: [] };
   // specimen broadleaf trees framing the house
   // (kept off the drone sightlines: roofing, solar and steel look in from the street-side corner)
-  out.jacaranda.push({ x: -9.6, z: 11.5, height: 10.5 }, { x: 25, z: 1.5, height: 12 }, { x: -21, z: -5, height: 11.5 }, { x: 4.2, z: -24.5, height: 12.5 }, { x: -2.5, z: 22.5, height: 9.5 });
+  out.jacaranda.push({ x: -21, z: 16, height: 10.5 }, { x: 25, z: 1.5, height: 12 }, { x: -21, z: -5, height: 11.5 }, { x: 4.2, z: -24.5, height: 12.5 }, { x: -2.5, z: 22.5, height: 9.5 });
   // woodland edge behind the garden and along the east side
   const edge: Array<[number, number]> = [];
   for (let i = 0; i < 26; i++) edge.push([-30 + i * 2.6 + J(1.8), -27 - Math.abs(Math.sin(i * 1.7)) * 5 + J(3)]);
@@ -141,9 +141,13 @@ function placeTrees(): Record<string, PlantPlacement[]> {
     (k === 0 ? out.fir_a : k === 1 ? out.fir_b : out.fir_c).push({ x, z, height: h, tone: J(0.25) });
   });
   // mid-size trees and shrub masses along the lot boundary
-  out.island.push({ x: -16.5, z: 3.5, height: 4.2 }, { x: 15.2, z: -10.5, height: 4.6 }, { x: 20, z: 11, height: 4.0 }, { x: -16.8, z: -13.5, height: 4.4 }, { x: 5.5, z: 19.5, height: 3.6 });
+  out.island.push({ x: -16.5, z: 3.5, height: 4.2 }, { x: 15.2, z: -10.5, height: 4.6 }, { x: 20, z: 11, height: 4.0 }, { x: -19.5, z: -10, height: 4.4 }, { x: 5.5, z: 19.5, height: 3.6 });
   const shrubs: Array<[number, number, number]> = [];
-  for (let i = 0; i < 18; i++) shrubs.push([LOT.x0 - 0.3 + J(0.6), LOT.z0 + 2 + i * 1.75, 1.4 + r() * 0.8]);
+  for (let i = 0; i < 18; i++) {
+    const s: [number, number, number] = [LOT.x0 - 0.3 + J(0.6), LOT.z0 + 2 + i * 1.75, 1.4 + r() * 0.8];
+    // the south-west corner stays open: the arrival and garden views are taken from there
+    if (i >= 5) shrubs.push(s);
+  }
   for (let i = 0; i < 12; i++) shrubs.push([LOT.x1 + 0.4 + J(0.6), -14 + i * 1.8, 1.2 + r() * 0.9]);
   for (let i = 0; i < 10; i++) shrubs.push([-13.5 + i * 1.6 + J(0.5), LOT.z1 - 0.2 + J(0.5), 1.1 + r() * 0.6]);
   shrubs.forEach(([x, z, h], i) => {

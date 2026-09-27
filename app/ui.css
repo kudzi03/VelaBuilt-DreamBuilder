@@ -2747,3 +2747,25 @@ input.sr-only:focus + .upload {
     animation: none;
   }
 }
+
+.callout--warm .callout__dot {
+  background: #f0a36a;
+  box-shadow:
+    0 0 0 3px rgba(240, 163, 106, 0.25),
+    0 0 14px rgba(240, 163, 106, 0.6);
+}
+
+.callout--warm .callout__k {
+  color: #f3b384;
+}
+
+.callout--cool .callout__dot {
+  background: #9dd3f5;
+  box-shadow:
+    0 0 0 3px rgba(157, 211, 245, 0.25),
+    0 0 14px rgba(157, 211, 245, 0.6);
+}
+
+.callout--cool .callout__k {
+  color: #a9d8f5;
+}

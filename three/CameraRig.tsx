@@ -38,7 +38,7 @@ export interface Shot {
   portrait?: { pos: V3; fov?: number; target?: V3 };
 }
 
-export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal", Shot> = {
+export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal" | "hvacOutdoor", Shot> = {
   // twilight, across the pool to the pavilion and the house
   hero: { pos: [-15.2, 1.25, -16.8], target: [-2.9, 3.4, -4.9], level: true, fov: 42, fit: [17, 9], overlap: 0.5, orbit: 0.35, tilt: [0.12, 0.08], zoom: [0.8, 1.15], portrait: { pos: [-16.5, 1.35, -19.5], fov: 50, target: [-3.4, 3.9, -5.4] } },
   roofing: { pos: [15.5, 12.5, 21], target: [0.6, 5.2, 0.4], fov: 36, fit: [17, 12], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
@@ -47,6 +47,8 @@ export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal", Shot> = {
   remodeling: { pos: [0.3, 1.45, -4.55], target: [2.6, 1.85, -11.6], level: true, fov: 50, fit: [7, 3.4], orbit: 0.4, tilt: [0.12, 0.12], zoom: [0.8, 1.02] },
   landscaping: { pos: [-15.8, 3.1, -16.4], target: [-6.4, 0.9, -8.4], fov: 42, fit: [15, 8], orbit: 0.4, tilt: [0.25, 0.15], zoom: [0.75, 1.2] },
   hvac: { pos: [-15.5, 9.5, 14], target: [0.2, 3.2, -2.6], fov: 38, fit: [19, 11], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
+  // HVAC problems at the outdoor unit: from the east, the unit, the line set up the wall, the attic beyond
+  hvacOutdoor: { pos: [15.5, 7.2, -17.5], target: [3.2, 2.4, -5.2], fov: 38, fit: [15, 9], orbit: 0.45, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
   steel: { pos: [17, 9.5, 15.5], target: [0.3, 4.0, -3.5], fov: 38, fit: [22, 12], orbit: 0.55, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
   flow: { pos: [-17.5, 1.6, -19.5], target: [-2.6, 3.6, -4.6], level: true, fov: 42, fit: [25, 12], orbit: 0.3 },
   reveal: { pos: [-19.5, 1.7, -22.5], target: [-2.4, 3.8, -4.2], level: true, fov: 40, fit: [27, 13], orbit: 0.3 },
@@ -121,14 +123,16 @@ export function CameraRig() {
   const industry = useDemo((s) => s.industry);
   const insets = useDemo((s) => s.insets);
   const reducedMotion = useDemo((s) => s.reducedMotion);
+  const hvacIssue = useDemo((s) => s.hvac.issue);
   const arrival = useRef({ active: true, t: 0 });
   const interacting = useRef(false);
   const idle = useRef({ t: 0, base: new THREE.Vector3(), right: new THREE.Vector3(), key: "" });
   // lens: focal length and shift ease together with the move
   const lens = useRef({ from: [36, 0, 0], to: [36, 0, 0], t: 1 });
 
+  const outdoor = industry === "hvac" && (hvacIssue === "cooling" || hvacIssue === "maintenance" || hvacIssue === "replace");
   const shotKey: keyof typeof SHOTS =
-    phase === "reveal" ? "reveal" : phase === "flow" ? (industry ?? "flow") : phase === "explore" || phase === "qualify" ? (industry ?? "hero") : "hero";
+    phase === "reveal" ? "reveal" : phase === "flow" ? (industry ?? "flow") : phase === "explore" || phase === "qualify" ? (outdoor ? "hvacOutdoor" : (industry ?? "hero")) : "hero";
 
   const apply = useCallback(
     (transition: boolean) => {

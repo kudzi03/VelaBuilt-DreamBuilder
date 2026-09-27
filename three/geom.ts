@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { RoofPlane, Vec3 } from "@/lib/spec";
 
@@ -19,6 +20,24 @@ export function box(w: number, h: number, d: number): THREE.BufferGeometry {
       const k = f * 4 + i;
       uv.setXY(k, uv.getX(k) * dims[f][0], uv.getY(k) * dims[f][1]);
     }
+  }
+  return g;
+}
+
+/** Box with eased edges (joinery catches the light) and metre UVs projected by face. */
+export function rbox(w: number, h: number, d: number, r = 0.0025, segments = 1): THREE.BufferGeometry {
+  const rr = Math.max(1e-4, Math.min(r, w / 2 - 1e-4, h / 2 - 1e-4, d / 2 - 1e-4));
+  const g = new RoundedBoxGeometry(w, h, d, segments, rr);
+  const p = g.attributes.position;
+  const n = g.attributes.normal;
+  const uv = g.attributes.uv as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    const ax = Math.abs(n.getX(i));
+    const ay = Math.abs(n.getY(i));
+    const az = Math.abs(n.getZ(i));
+    if (ax >= ay && ax >= az) uv.setXY(i, p.getZ(i), p.getY(i));
+    else if (ay >= az) uv.setXY(i, p.getX(i), p.getZ(i));
+    else uv.setXY(i, p.getX(i), p.getY(i));
   }
   return g;
 }

@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { MAIN, PANEL, PANEL_SLOTS, ROOF_PLANE_BY_ID, planePoint } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty } from "./Atmosphere";
-import { box, merge, planeMatrix } from "./geom";
+import { box, merge, planeMatrix, rbox } from "./geom";
 import { solarCells } from "./proc";
 import { ROOF_T } from "./Roof";
 import { channels } from "./shared";
@@ -15,16 +15,22 @@ const N = PANEL_SLOTS.length;
 const LIFT = ROOF_T + 0.11;
 const ease = (x: number) => 1 - Math.pow(1 - x, 3);
 
+/** Anodised frame, and the two mounting rails the panel is clamped to (they read continuous along a row). */
 function panelFrame(): THREE.BufferGeometry {
   const w = PANEL.w;
   const h = PANEL.h;
   const t = 0.035;
   const d = 0.04;
   return merge([
-    { geo: box(w, d, t), pos: [0, 0, h / 2 - t / 2] },
-    { geo: box(w, d, t), pos: [0, 0, -h / 2 + t / 2] },
-    { geo: box(t, d, h - 2 * t), pos: [w / 2 - t / 2, 0, 0] },
-    { geo: box(t, d, h - 2 * t), pos: [-w / 2 + t / 2, 0, 0] },
+    { geo: rbox(w, d, t, 0.004), pos: [0, 0, h / 2 - t / 2] },
+    { geo: rbox(w, d, t, 0.004), pos: [0, 0, -h / 2 + t / 2] },
+    { geo: rbox(t, d, h - 2 * t, 0.004), pos: [w / 2 - t / 2, 0, 0] },
+    { geo: rbox(t, d, h - 2 * t, 0.004), pos: [-w / 2 + t / 2, 0, 0] },
+    { geo: box(w + PANEL.gap, 0.035, 0.042), pos: [0, -0.055, h / 4] },
+    { geo: box(w + PANEL.gap, 0.035, 0.042), pos: [0, -0.055, -h / 4] },
+    // end clamps
+    { geo: box(0.04, 0.012, 0.05), pos: [w / 2 + 0.004, 0.022, h / 4] },
+    { geo: box(0.04, 0.012, 0.05), pos: [w / 2 + 0.004, 0.022, -h / 4] },
   ]);
 }
 
@@ -46,17 +52,20 @@ export function Solar() {
   const state = useRef({ p: new Float32Array(N), delay: new Float32Array(N), target: new Uint8Array(N), dirty: true });
 
   const geo = useMemo(() => ({ frame: panelFrame(), cells: panelCells() }), []);
+  const batteryGeo = useMemo(() => rbox(0.2, 1.1, 0.62, 0.03, 2), []);
+  useEffect(() => () => batteryGeo.dispose(), [batteryGeo]);
   const base = useMemo(() => PANEL_SLOTS.map((s) => planeMatrix(ROOF_PLANE_BY_ID[s.plane], s.u, s.v, LIFT)), []);
   const normal = useMemo(() => new THREE.Vector3(...ROOF_PLANE_BY_ID["main-front"].normal), []);
 
   const mats = useMemo(
     () => ({
       frame: new THREE.MeshStandardMaterial({ color: "#1a1b1e", metalness: 0.7, roughness: 0.35 }),
-      cells: new THREE.MeshStandardMaterial({ map: solarCells("black").map, metalness: 0.5, roughness: 0.1, envMapIntensity: 2.1 }),
+      // cells under low-iron glass: the glass carries the sky's reflection, the cells stay deep
+      cells: new THREE.MeshPhysicalMaterial({ map: solarCells("black").map, metalness: 0.15, roughness: 0.45, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.3 }),
       battery: new THREE.MeshStandardMaterial({ color: "#efeeea", roughness: 0.55 }),
       led: new THREE.MeshStandardMaterial({ color: "#6ee7c2", emissive: new THREE.Color("#4fe0b0"), emissiveIntensity: 2.4 }),
       conduit: new THREE.MeshStandardMaterial({ color: "#9a9da0", metalness: 0.6, roughness: 0.5 }),
-      outline: new THREE.LineDashedMaterial({ color: "#e3892a", dashSize: 0.28, gapSize: 0.18, transparent: true, opacity: 0.9 }),
+      outline: new THREE.LineBasicMaterial({ color: "#e0c398", transparent: true, opacity: 0.5 }),
     }),
     [],
   );
@@ -75,9 +84,7 @@ export function Solar() {
     const [u0, u1, v0, v1] = p.usable;
     const pts = [planePoint(p, u0, v0, LIFT - 0.06), planePoint(p, u1, v0, LIFT - 0.06), planePoint(p, u1, v1, LIFT - 0.06), planePoint(p, u0, v1, LIFT - 0.06), planePoint(p, u0, v0, LIFT - 0.06)];
     const g = new THREE.BufferGeometry().setFromPoints(pts.map((x) => new THREE.Vector3(...x)));
-    const line = new THREE.Line(g, mats.outline);
-    line.computeLineDistances();
-    return line;
+    return new THREE.Line(g, mats.outline);
   }, [mats]);
 
   const tmp = useMemo(() => new THREE.Matrix4(), []);
@@ -90,12 +97,13 @@ export function Solar() {
     if (group.current) group.current.visible = vis > 0.001 || state.current.p.some((x) => x > 0);
     const want = vis > 0.5 ? count : 0;
     const st = state.current;
+    const reduced = useDemo.getState().reducedMotion;
     let order = 0;
     for (let i = 0; i < N; i++) {
       const t = i < want ? 1 : 0;
       if (st.target[i] !== t) {
         st.target[i] = t;
-        st.delay[i] = t ? order++ * 0.065 : (N - i) * 0.01;
+        st.delay[i] = reduced ? 0 : t ? order++ * 0.065 : (N - i) * 0.01;
       }
     }
     let changed = false;
@@ -107,7 +115,7 @@ export function Solar() {
       const t = st.target[i];
       const p = st.p[i];
       if (p === t) continue;
-      st.p[i] = t ? Math.min(1, p + dt / 0.5) : Math.max(0, p - dt / 0.25);
+      st.p[i] = reduced ? t : t ? Math.min(1, p + dt / 0.5) : Math.max(0, p - dt / 0.25);
       changed = true;
     }
     if (changed || st.dirty) {
@@ -128,7 +136,7 @@ export function Solar() {
       if (cells.current) cells.current.instanceMatrix.needsUpdate = true;
       markShadowsDirty(2);
     }
-    mats.outline.opacity = 0.9 * vis;
+    mats.outline.opacity = 0.5 * vis;
     if (batteries.current) batteries.current.visible = vis > 0.3;
   });
 
@@ -142,9 +150,7 @@ export function Solar() {
       <group ref={batteries}>
         {[0, 1].map((i) => (
           <group key={i} visible={battery > i} position={[bx, 1.12, -2.55 + i * 0.72]}>
-            <mesh material={mats.battery} castShadow>
-              <boxGeometry args={[0.2, 1.1, 0.62]} />
-            </mesh>
+            <mesh material={mats.battery} geometry={batteryGeo} castShadow />
             <mesh material={mats.led} position={[0.101, 0.35, 0]}>
               <boxGeometry args={[0.004, 0.012, 0.3]} />
             </mesh>

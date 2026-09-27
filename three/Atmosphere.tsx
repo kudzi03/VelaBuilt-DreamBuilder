@@ -96,9 +96,9 @@ function horizonBins(img: CanvasImageSource & { width: number; height: number })
   const g = c.getContext("2d", { willReadFrequently: true });
   if (!g) return null;
   g.drawImage(img, 0, 0, W, H);
-  // rows from ~1.5° to ~9° above the horizon
-  const y0 = Math.floor(H / 2 - (9 / 180) * H);
-  const y1 = Math.floor(H / 2 - (1.5 / 180) * H);
+  // rows from ~4.5° to ~11° above the horizon: clear of the hills in the photograph
+  const y0 = Math.floor(H / 2 - (11 / 180) * H);
+  const y1 = Math.floor(H / 2 - (4.5 / 180) * H);
   const data = g.getImageData(0, y0, W, y1 - y0 + 1).data;
   const bins = new Float32Array(64 * 3);
   const lin = (v: number) => {
@@ -160,6 +160,7 @@ uniform float uSunDisk;
 uniform vec3 uGround;
 uniform vec3 uLandDark;
 uniform float uLandLit;
+uniform vec3 uFog;
 varying vec3 vDir;
 
 float h1(float n) { return fract(sin(n) * 43758.5453123); }
@@ -194,8 +195,11 @@ void main() {
   vec3 d = normalize(vDir);
   float elev = degrees(asin(clamp(d.y, -1.0, 1.0)));
   float az = atan(d.z, d.x) + 3.14159265;
-  vec3 horizon = skyRadiance(normalize(vec3(d.x, 0.012, d.z)));
-  vec3 col = skyRadiance(d);
+  // the photographs have their own hills on the horizon (flat-topped mesas): below ~4.5° the
+  // sky is taken from just above them, so only our own hazed land layers sit on the horizon
+  vec3 above = skyRadiance(normalize(vec3(d.x, 0.08, d.z)));
+  vec3 horizon = above;
+  vec3 col = mix(above, skyRadiance(d), smoothstep(3.2, 4.8, elev));
   // deepen the zenith after sunset, as a camera exposing for the lit house would see it
   col *= 1.0 - uMix * 0.5 * pow(clamp(d.y, 0.0, 1.0), 0.55);
 
@@ -219,7 +223,8 @@ void main() {
   if (elev < far) col = mix(land, horizon, 0.78 - 0.1 * toSun);
   if (elev < hills) col = mix(land, horizon, 0.6 - 0.12 * toSun);
   if (elev < trees) col = mix(land, horizon, 0.4 - 0.1 * toSun);
-  if (elev < 0.0) col = uGround;
+  // below the horizon the dome continues the ground plane, which is fully fogged at its edge
+  if (elev < 0.0) col = mix(uFog, uGround, smoothstep(-2.0, -12.0, elev));
 
   gl_FragColor = vec4(col, 1.0);
   ${OUTPUT_TAIL}
@@ -301,6 +306,7 @@ export function Atmosphere() {
           uGround: { value: new THREE.Color() },
           uLandDark: { value: new THREE.Color("#0f1418") },
           uLandLit: { value: 1 },
+          uFog: { value: new THREE.Color() },
         },
         vertexShader: DOME_VERT,
         fragmentShader: DOME_FRAG,
@@ -391,6 +397,7 @@ export function Atmosphere() {
     } else {
       fog.color.copy(horizonA).multiplyScalar(g.a * 0.55).add(tmp.c2.copy(horizonB).multiplyScalar(g.b * 0.5));
     }
+    u.uFog.value.copy(fog.color);
     if (dome.current) dome.current.position.copy(camera.position);
 
     // re-bake the environment when the light has changed enough to see

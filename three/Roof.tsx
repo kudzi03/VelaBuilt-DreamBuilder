@@ -124,7 +124,7 @@ export function Roof() {
   const mats = useMemo(() => {
     const kind = (k: Kind, wing: boolean) => lazy.get(`${k}${wing}`, () => makeSurfaceMaterial(k, wing ? fades.wingRoof : undefined)) as THREE.MeshStandardMaterial;
     const worn = (wing: boolean) =>
-      lazy.get(`worn${wing}`, () => patch(pbr("shingle_worn", { normalScale: 1.3, envMapIntensity: 0.6 }), { cut: "solid", wipe: { side: "before", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined })) as THREE.MeshStandardMaterial;
+      lazy.get(`worn${wing}`, () => patch(pbr("shingle_worn", { color: "#a9a49b", normalScale: 1.3, envMapIntensity: 0.5 }), { cut: "solid", wipe: { side: "before", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined })) as THREE.MeshStandardMaterial;
     const trim = patch(new THREE.MeshStandardMaterial({ color: "#232427", roughness: 0.5, metalness: 0.3 }), { cut: "solid" });
     const trimWing = patch(new THREE.MeshStandardMaterial({ color: "#232427", roughness: 0.5, metalness: 0.3 }), { cut: "solid", fade: fades.wingRoof });
     const cap = patch(new THREE.MeshStandardMaterial({ color: "#2c2d30", roughness: 0.6 }), { cut: "solid", wipe: { side: "after", u: wipes.roof } });
