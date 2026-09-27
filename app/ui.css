@@ -2694,6 +2694,11 @@ input.sr-only:focus + .upload {
   animation: callout-in 0.6s 0.15s var(--ease) both;
 }
 
+.callout[data-flip="1"] .callout__box {
+  left: auto;
+  right: -1px;
+}
+
 .callout__k {
   font-family: var(--font-mono);
   font-size: 9.5px;

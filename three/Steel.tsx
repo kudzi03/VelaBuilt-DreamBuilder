@@ -224,6 +224,7 @@ export function Steel() {
   const explode = useDemo((s) => s.steel.explode);
   const selected = useDemo((s) => s.steel.selected);
   const replay = useDemo((s) => s.steel.replay);
+  const layout = useDemo((s) => s.layout);
   const industry = useDemo((s) => s.industry);
   const phase = useDemo((s) => s.phase);
   const patch = useDemo((s) => s.patch);
@@ -434,7 +435,8 @@ export function Steel() {
         </Html>
       )}
       {showCallouts &&
-        callouts.map((c) => (
+        // a phone's view has room for two labels: the frame's two headline members
+        callouts.filter((c) => layout !== "mobile" || c.key === "truss" || c.key === "col").map((c) => (
           <Html key={c.key} position={c.at} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
             <Callout k={c.k} v={c.section ? `${sec(c.section)}${c.suffix ?? ""}` : c.v ?? ""} />
           </Html>
