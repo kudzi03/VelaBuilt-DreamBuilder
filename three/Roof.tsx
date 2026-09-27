@@ -86,12 +86,17 @@ function makeSurfaceMaterial(kind: Kind, fade?: { value: number }) {
   }
 }
 
+/** Tuned so the colour on the roof reads as the swatch the customer picked, even in low warm sun. */
 function tuneForColor(m: THREE.MeshStandardMaterial, kind: Kind, colorId: string, hexColor: string) {
   m.color.set(hexColor);
+  const dark = new THREE.Color(hexColor).getHSL({ h: 0, s: 0, l: 0 }).l < 0.2;
+  m.envMapIntensity = dark ? 0.55 : 0.9;
   if (kind === "metal") {
     const bright = colorId === "galvalume";
-    m.metalness = bright ? 0.8 : colorId === "matte-black" ? 0.3 : 0.45;
-    m.roughness = colorId === "matte-black" ? 0.74 : bright ? 0.34 : 0.48;
+    m.metalness = bright ? 0.8 : dark ? 0.12 : 0.4;
+    m.roughness = bright ? 0.34 : dark ? 0.82 : 0.5;
+  } else {
+    m.roughness = dark ? 0.95 : 0.85;
   }
 }
 

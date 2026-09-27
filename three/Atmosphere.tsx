@@ -1,6 +1,5 @@
 "use client";
 
-import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -15,8 +14,8 @@ const SUN_TARGET = new THREE.Vector3(-1.5, 0, -4);
 const DAY = {
   top: new THREE.Color("#8da9c4"),
   horizon: new THREE.Color("#f1d6b8"),
-  sun: new THREE.Color("#ffc185"),
-  sunI: 4.6,
+  sun: new THREE.Color("#ffe4c8"),
+  sunI: 4.2,
   hemiSky: new THREE.Color("#aec4dc"),
   hemiGround: new THREE.Color("#a3876a"),
   hemiI: 0.42,
@@ -122,7 +121,7 @@ export function Atmosphere() {
     u.uHorizon.value.copy(DAY.horizon).lerp(DUSK.horizon, d);
     u.uSunColor.value.copy(DAY.sun).lerp(DUSK.sun, d);
     u.uGlow.value = 1 - d * 0.55;
-    fog.color.copy(tmp.copy(DAY.horizon).lerp(DUSK.horizon, d)).multiplyScalar(1 - d * 0.35);
+    fog.color.copy(tmp.copy(DAY.horizon).lerp(DUSK.horizon, d));
     // fog starts beyond the subject whatever the framing distance
     const dist = camera.position.length();
     fog.near = Math.max(40, dist * 0.9 + 12);
@@ -134,6 +133,36 @@ export function Atmosphere() {
       shadowDirtyFrames--;
     }
   });
+
+  // Image-based lighting from a hand-built light studio (no HDR download, no loaders in the bundle).
+  useEffect(() => {
+    const env = new THREE.Scene();
+    const disposables: Array<{ dispose: () => void }> = [];
+    const add = (geo: THREE.BufferGeometry, color: string, intensity: number, pos: [number, number, number], scale: [number, number, number], look = true, side: THREE.Side = THREE.DoubleSide) => {
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity), side, toneMapped: false });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(...pos);
+      m.scale.set(...scale);
+      if (look) m.lookAt(0, 0, 0);
+      env.add(m);
+      disposables.push(geo, mat);
+    };
+    add(new THREE.SphereGeometry(1, 32, 16), "#cfd7dc", 1, [0, 0, 0], [100, 100, 100], false, THREE.BackSide);
+    add(new THREE.PlaneGeometry(1, 1), "#e9eef2", 1.4, [0, 30, 0], [80, 80, 1]);
+    add(new THREE.PlaneGeometry(1, 1), "#f2e2c9", 0.9, [0, 4, 60], [160, 12, 1]);
+    add(new THREE.PlaneGeometry(1, 1), "#e7d9c3", 0.6, [0, 4, -60], [160, 12, 1]);
+    add(new THREE.PlaneGeometry(1, 1), "#b9a687", 0.55, [0, -20, 0], [80, 80, 1]);
+    add(new THREE.CircleGeometry(1, 32), "#ffe2c2", 9, SUN_DIR.clone().multiplyScalar(45).toArray() as [number, number, number], [7, 7, 7]);
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const rt = pmrem.fromScene(env, 0.02, 0.1, 200, { size: T.envRes });
+    scene.environment = rt.texture;
+    pmrem.dispose();
+    disposables.forEach((d) => d.dispose());
+    return () => {
+      if (scene.environment === rt.texture) scene.environment = null;
+      rt.dispose();
+    };
+  }, [gl, scene, T.envRes]);
 
   const sunPos = useMemo(() => SUN_TARGET.clone().addScaledVector(SUN_DIR, 50), []);
   const target = useMemo(() => {
@@ -165,17 +194,6 @@ export function Atmosphere() {
         shadow-camera-bottom={-24}
       />
       <hemisphereLight ref={hemi} args={[DAY.hemiSky, DAY.hemiGround, DAY.hemiI]} />
-      <Environment resolution={T.envRes} frames={1} environmentIntensity={DAY.env}>
-        <mesh scale={100}>
-          <sphereGeometry args={[1, 32, 16]} />
-          <meshBasicMaterial side={THREE.BackSide} color="#cfd7dc" />
-        </mesh>
-        <Lightformer form="rect" intensity={1.4} color="#e9eef2" position={[0, 30, 0]} rotation-x={Math.PI / 2} scale={[80, 80, 1]} />
-        <Lightformer form="rect" intensity={0.9} color="#f2e2c9" position={[0, 4, 60]} scale={[160, 12, 1]} />
-        <Lightformer form="rect" intensity={0.6} color="#e7d9c3" position={[0, 4, -60]} rotation-y={Math.PI} scale={[160, 12, 1]} />
-        <Lightformer form="rect" intensity={0.55} color="#b9a687" position={[0, -20, 0]} rotation-x={-Math.PI / 2} scale={[80, 80, 1]} />
-        <Lightformer form="circle" intensity={9} color="#ffd6a6" position={SUN_DIR.clone().multiplyScalar(45).toArray()} scale={7} target={[0, 0, 0]} />
-      </Environment>
     </>
   );
 }

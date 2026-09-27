@@ -2,7 +2,7 @@
 
 import { PerformanceMonitor } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { track } from "@/lib/analytics";
 import { TIERS } from "@/lib/quality";
@@ -10,7 +10,8 @@ import { useDemo, type Tier } from "@/lib/store";
 import { Atmosphere } from "./Atmosphere";
 import { CameraRig } from "./CameraRig";
 import { Director } from "./Director";
-import { Effects } from "./Effects";
+// Post-processing is a separate chunk: low-tier devices never download it.
+const Effects = lazy(() => import("./Effects").then((m) => ({ default: m.Effects })));
 import { House } from "./House";
 import { setMaxAnisotropy, setTextureScale } from "./proc";
 import { Scenarios } from "./Scenarios";
@@ -114,7 +115,11 @@ export default function Stage() {
         <Scenarios />
       </Suspense>
       <CameraRig />
-      <Effects />
+      {T.post && (
+        <Suspense fallback={null}>
+          <Effects />
+        </Suspense>
+      )}
       <Ready t0={t0.current} />
     </Canvas>
   );

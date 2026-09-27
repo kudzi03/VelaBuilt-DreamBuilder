@@ -216,7 +216,13 @@ function dining(): { wood: Placed[]; fabric: Placed[]; rug: Placed[] } {
       const x = cx + side * 0.72;
       fabric.push({ geo: box(0.44, 0.06, 0.44), pos: [x, Y0 + 0.46, cz + dz] });
       fabric.push({ geo: box(0.06, 0.42, 0.42), pos: [x + side * 0.2, Y0 + 0.72, cz + dz] });
-      wood.push({ geo: box(0.4, 0.43, 0.4), pos: [x, Y0 + 0.215, cz + dz] });
+      for (const [lx, lz] of [
+        [-0.18, -0.18],
+        [0.18, -0.18],
+        [-0.18, 0.18],
+        [0.18, 0.18],
+      ])
+        wood.push({ geo: box(0.03, 0.43, 0.03), pos: [x + lx, Y0 + 0.215, cz + dz + lz] });
     }
   }
   return { wood, fabric, rug: [{ geo: box(2.6, 0.012, 3.0), pos: [cx, Y0 + 0.006, cz] }] };
@@ -327,7 +333,7 @@ export function Kitchen() {
       });
     const b = (key: string, make: () => THREE.MeshStandardMaterial) => L(`b-${key}`, make);
     const beforeSet = () => ({
-      oak: b("oak", () => std({ map: oak(), color: "#e6a45a", roughness: 0.45 }, before)),
+      oak: b("oak", () => std({ map: oak(), color: "#d9b485", roughness: 0.4 }, before)),
       lam: b("lam", () => std({ map: laminate().map, roughness: 0.6 }, before)),
       floor: b("floor", () => std({ map: photo("floor_tiles_06"), roughness: 0.55, color: "#e8e1cf" }, before)),
       splash: b("splash", () => std({ map: zellige().map, roughness: 0.3, color: "#efe3c7" }, before)),
@@ -351,7 +357,7 @@ export function Kitchen() {
       stool: std({ color: "#1d1d1f", metalness: 0.5, roughness: 0.4 }),
       pendant: std({ color: "#1f1f21", metalness: 0.7, roughness: 0.35, side: THREE.DoubleSide }),
       glow: std({ color: "#ffe2b8", emissive: new THREE.Color("#ffcf96"), emissiveIntensity: 2.2 }),
-      wood: patch(new THREE.MeshStandardMaterial({ map: oak(), color: "#d8b48e", roughness: 0.6 }), { cut: "solid" }),
+      wood: patch(new THREE.MeshStandardMaterial({ map: oak(), color: "#cdbca6", roughness: 0.6 }), { cut: "solid" }),
       fabric: patch(new THREE.MeshStandardMaterial({ color: "#d9d2c5", roughness: 0.95 }), { cut: "solid" }),
       rug: patch(new THREE.MeshStandardMaterial({ color: "#cbbda6", roughness: 1 }), { cut: "solid" }),
     };

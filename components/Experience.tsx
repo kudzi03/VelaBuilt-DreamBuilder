@@ -167,6 +167,7 @@ export function Experience() {
     const params = new URLSearchParams(location.search);
     const company = params.get("company")?.trim().slice(0, 60) || null;
     const ref = params.get("ref") || params.get("utm_source") || null;
+    if (params.has("debug")) (window as unknown as { __store: typeof useDemo }).__store = useDemo;
     const gl = webglAvailable();
     const tier = detectTier();
     s.set({ tier, reducedMotion: prefersReducedMotion(), company, ref, webgl: gl, layout: layoutFor(innerWidth, innerHeight) });

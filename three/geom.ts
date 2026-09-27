@@ -253,10 +253,11 @@ export function planeMatrix(p: RoofPlane, u: number, v: number, lift: number, ro
   return m;
 }
 
-/** Roof slab body (fascia/soffit) under the top surface. */
+/** Roof slab body (fascia/soffit) under the top surface — kept 2 cm below it so the two never z-fight. */
 export function roofBody(p: RoofPlane, thickness: number): THREE.BufferGeometry {
-  const g = box(p.width, thickness, p.length);
-  g.applyMatrix4(planeMatrix(p, p.width / 2, p.length / 2, thickness / 2));
+  const h = thickness - 0.02;
+  const g = box(p.width, h, p.length);
+  g.applyMatrix4(planeMatrix(p, p.width / 2, p.length / 2, h / 2));
   return g;
 }
 

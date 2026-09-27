@@ -200,14 +200,14 @@ export function House() {
     const drywall = std({ color: "#f3f1ec", roughness: 0.95 });
     const wood = std({ map: cd.map, normalMap: cd.normalMap, roughness: 0.78, color: "#ffffff" });
     const trim = std({ color: "#222326", roughness: 0.52, metalness: 0.35 });
-    const glass = std({ color: "#7d909d", roughness: 0.05, metalness: 0.92, envMapIntensity: 1.25, emissive: new THREE.Color("#ffc88f"), emissiveIntensity: 0 });
+    const glass = std({ color: "#7d909d", roughness: 0.05, metalness: 0.92, envMapIntensity: 1.25, emissive: new THREE.Color("#ffab5e"), emissiveIntensity: 0 });
     const daylight = std({ color: "#dfe7ea", roughness: 1, emissive: new THREE.Color("#eef3f2"), emissiveIntensity: 0.55 });
     const plinthMat = std({ map: cc.map, roughness: 0.9, color: "#ffffff" });
     const slab = std({ color: "#cfcac1", roughness: 0.9 });
     const fadeWall = std({ map: cd.map, normalMap: cd.normalMap, roughness: 0.78 }, { cut: "solid", fade: fades.glassWall });
     const fadeDry = std({ color: "#f3f1ec", roughness: 0.95 }, { cut: "solid", fade: fades.glassWall });
     const fadeTrim = std({ color: "#222326", roughness: 0.52, metalness: 0.35 }, { cut: "solid", fade: fades.glassWall });
-    const fadeGlass = std({ color: "#7d909d", roughness: 0.05, metalness: 0.92, envMapIntensity: 1.25, emissive: new THREE.Color("#ffc88f"), emissiveIntensity: 0 }, { cut: "solid", fade: fades.glassWall });
+    const fadeGlass = std({ color: "#7d909d", roughness: 0.05, metalness: 0.92, envMapIntensity: 1.25, emissive: new THREE.Color("#ffab5e"), emissiveIntensity: 0 }, { cut: "solid", fade: fades.glassWall });
     const ghost = ghostMaterial("#7d93aa", 1);
     const edges = patch(new THREE.LineBasicMaterial({ color: "#3b4654", transparent: true, opacity: 0, depthWrite: false }), { cut: "ghost" });
     return { wall, drywall, wood, trim, glass, daylight, plinthMat, slab, fadeWall, fadeDry, fadeTrim, fadeGlass, ghost, edges };
@@ -230,8 +230,8 @@ export function House() {
 
   useFrame(() => {
     const dusk = channels.dusk;
-    mats.glass.emissiveIntensity = dusk * 2.2;
-    mats.fadeGlass.emissiveIntensity = dusk * 2.2;
+    mats.glass.emissiveIntensity = dusk * 1.6;
+    mats.fadeGlass.emissiveIntensity = dusk * 1.6;
     mats.daylight.emissiveIntensity = 0.55 * (1 - dusk) + 0.05;
     mats.edges.opacity = channels.ghost * 0.55;
     if (ghostGroup.current) ghostGroup.current.visible = channels.ghost > 0.01;

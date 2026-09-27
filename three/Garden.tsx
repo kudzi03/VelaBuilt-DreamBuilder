@@ -202,13 +202,12 @@ function plantGeometry(list: Plant[]): THREE.BufferGeometry {
 }
 
 const CORE_TREES: TreeSpec[] = [
-  { x: -12.8, z: -15.7, kind: "column", s: 1.05 },
-  { x: -9.6, z: -15.8, kind: "column", s: 1.15 },
-  { x: -6.4, z: -15.7, kind: "column", s: 1 },
+  { x: -11.6, z: -15.8, kind: "column", s: 0.85 },
+  { x: -8.2, z: -15.9, kind: "column", s: 0.95 },
+  { x: -5.2, z: -15.8, kind: "column", s: 0.85 },
 ];
 const LUSH_TREES: TreeSpec[] = [
-  { x: -3.2, z: -14.9, kind: "multi", s: 1.05 },
-  { x: -13.3, z: -15.3, kind: "round", s: 0.8 },
+  { x: -3.2, z: -14.9, kind: "multi", s: 0.95 },
 ];
 
 const STONES: Array<[number, number]> = [
@@ -357,14 +356,14 @@ export function Garden() {
 
   useFrame((_, dt) => {
     const d = channels.dusk;
-    const lit = c.evening ? d : 0;
+    const lit = c.evening || useDemo.getState().phase === "reveal" ? d : 0;
     const water = mats.water.normalMap!;
     water.offset.x = (U.time.value * 0.02) % 1;
     water.offset.y = (U.time.value * 0.013) % 1;
     mats.water.emissiveIntensity = 0.05 + lit * 0.9;
     mats.shell.emissiveIntensity = lit * 0.9;
     mats.bollard.emissiveIntensity = 0;
-    mats.pool.opacity += ((c.evening ? d * 0.75 : 0) - mats.pool.opacity) * Math.min(1, dt * 6);
+    mats.pool.opacity += (lit * 0.75 - mats.pool.opacity) * Math.min(1, dt * 6);
     if (lights.current) lights.current.visible = lit > 0.01;
     if (pointLight.current) pointLight.current.intensity = c.pergola ? lit * 9 : 0;
   });

@@ -15,7 +15,7 @@ import { Chips } from "./ui";
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 export function sheetHeights(h: number) {
-  return { peek: 196, half: Math.round(h * 0.5), full: Math.round(h * 0.88) };
+  return { peek: 222, half: Math.round(h * 0.52), full: Math.round(h * 0.88) };
 }
 
 const ORDER: SheetSnap[] = ["peek", "half", "full"];

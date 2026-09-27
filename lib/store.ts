@@ -227,7 +227,10 @@ export const useDemo = create<DemoState>()(
       const id = s.industry;
       if (on && id) {
         const eng = s.engagement[id] ?? { ms: 0, actions: 0, compare: false };
-        set({ compare: true, split: 0.5, engagement: { ...s.engagement, [id]: { ...eng, compare: true, actions: eng.actions + 1 } } });
+        // start the divider in the middle of the visible scene, not the middle of the screen
+        const w = typeof window !== "undefined" ? window.innerWidth : 1;
+        const mid = (s.insets.left + (w - s.insets.left - s.insets.right) / 2) / w;
+        set({ compare: true, split: Math.min(0.8, Math.max(0.2, mid)), engagement: { ...s.engagement, [id]: { ...eng, compare: true, actions: eng.actions + 1 } } });
       } else set({ compare: on });
     },
 

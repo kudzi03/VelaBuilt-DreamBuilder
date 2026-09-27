@@ -23,7 +23,7 @@ export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal", Shot> = {
   roofing: { target: [0.2, 6.3, -2.8], azimuth: 0.4, polar: 1.02, radius: 10.2 },
   solar: { target: [0.4, 6.3, 1.4], azimuth: 0.36, polar: 1.0, radius: 8.4 },
   remodeling: { target: [2.7, 1.05, -10.2], azimuth: -1.4, polar: 0.84, radius: 5.4 },
-  landscaping: { target: [-6.9, 0.4, -10.1], azimuth: -1.66, polar: 0.84, radius: 8.2 },
+  landscaping: { target: [-6.6, 0.3, -9.8], azimuth: -1.72, polar: 0.8, radius: 9.2 },
   hvac: { target: [0.4, 3.7, -4.3], azimuth: 0.74, polar: 1.1, radius: 11.4 },
   steel: { target: [0.6, 4.3, -4.6], azimuth: -0.4, polar: 1.0, radius: 11.2 },
   flow: { target: [0.3, 3.4, -4.6], azimuth: 0.95, polar: 1.18, radius: 13.5, orbit: 1.2 },
@@ -45,7 +45,8 @@ export function frame(shot: Shot, w: number, h: number, insets: Insets, fov: num
   const dist = Math.max(shot.radius / (t * fy), shot.radius / (t * aspect * fx)) * 1.02;
   const cx = ((insets.left + availW / 2) / w) * 2 - 1;
   const cy = 1 - ((insets.top + availH / 2) / h) * 2;
-  return { dist, offX: -cx * dist * t * aspect, offY: -cy * dist * t };
+  // camera-controls applies focalOffset.y inverted (camera moves down for +y), so y keeps the sign of cy
+  return { dist, offX: -cx * dist * t * aspect, offY: cy * dist * t };
 }
 
 function spherical(shot: Shot, az: number, polar: number, dist: number): V3 {

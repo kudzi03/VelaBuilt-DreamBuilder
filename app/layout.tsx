@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import { SHARE_DESCRIPTION, SHARE_TITLE, SITE_URL } from "@/lib/config";
+import { CONTACT_EMAIL, INSTAGRAM_URL, SHARE_DESCRIPTION, SHARE_TITLE, SITE_URL, VELABUILT_URL } from "@/lib/config";
 import "./globals.css";
 import "./ui.css";
 
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
         width: 1200,
         height: 630,
         type: "image/jpeg",
-        alt: "A house at golden hour with its roof being configured — The Future of Contractor Sales, an interactive demo by VelaBuilt",
+        alt: "A house split down the middle: the old mossy roof on one side, the new standing-seam roof and its estimate on the other — The Future of Contractor Sales, an interactive demo by VelaBuilt",
       },
     ],
   },
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/manifest.webmanifest",
 };
@@ -72,9 +72,33 @@ export const viewport: Viewport = {
   colorScheme: "light",
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: title,
+  description: SHARE_DESCRIPTION,
+  url: SITE_URL,
+  image: `${SITE_URL}/og.jpg`,
+  inLanguage: "en",
+  isPartOf: { "@type": "WebSite", name: "VelaBuilt", url: VELABUILT_URL },
+  publisher: {
+    "@type": "Organization",
+    name: "VelaBuilt",
+    url: VELABUILT_URL,
+    email: CONTACT_EMAIL,
+    logo: `${SITE_URL}/icon-512.png`,
+    sameAs: [INSTAGRAM_URL],
+    description: "A creative technology studio that designs and builds premium websites, AI agents, business automation and operational systems such as CRMs and dashboards.",
+  },
+  about: ["Contractor websites", "3D product configurators", "Lead qualification", "CRM", "Automated follow-up", "Online booking"],
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${archivo.variable} ${geistMono.variable}`}>
+      <head>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      </head>
       <body>
         <a className="skip-link" href="#panel">
           Skip to controls

@@ -10,6 +10,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  devIndicators: false,
   transpilePackages: ["three"],
   async headers() {
     return [
