@@ -41,7 +41,7 @@ Node 20.9+ (tested on Node 22).
 | `?company=Acme%20Roofing` | Intro shows "Prepared for Acme Roofing"; the follow-up message and CRM use the name |
 | `?industry=roofing` | Opens straight into a business after the arrival (`remodeling`, `roofing`, `steel`, `solar`, `landscaping`, `hvac`) |
 | `?ref=whatsapp-status` | Attribution, recorded with every analytics event (also reads `utm_source`) |
-| `?quality=low\|medium\|high` | Force a rendering tier (useful when demoing on an older phone) |
+| `?quality=ultra\|standard\|mobile` | Force a rendering tier (useful when demoing on an older phone); `high\|medium\|low` also work |
 | `?motion=reduced` | Force reduced motion |
 
 Example for cold outreach:
@@ -157,6 +157,9 @@ Key ideas:
 - **Photographer's camera.** Each shot is a position, a subject and a lens. Ground-level
   shots stay level (verticals vertical) and use lens shift — an off-axis projection — to put
   the subject in the space the panel or bottom sheet leaves free, on any screen shape.
+  Moves between shots are planned, not interpolated (`three/flight.ts`): the camera orbits the
+  building instead of cutting through it, lifts over tree crowns, walks into the kitchen through
+  the glass wall, and bends onto a new mark if the layout changes mid-move.
 - **Light you can believe.** Two photographed skies drive sky, image-based light and sun
   across golden and blue hour; rooms use lamps and (in the kitchen) a captured room probe.
 

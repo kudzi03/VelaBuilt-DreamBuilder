@@ -2819,6 +2819,16 @@ input.sr-only:focus + .upload {
 
 .brand__tag {
   color: var(--faint);
+  transition: opacity 0.4s var(--ease);
+}
+
+/* the industry switcher takes the middle of the bar: the tagline steps aside unless there's room */
+@media (max-width: 1599px) {
+  .topbar[data-phase="explore"] .brand__tag,
+  .topbar[data-phase="qualify"] .brand__tag {
+    opacity: 0;
+    visibility: hidden;
+  }
 }
 
 .topbar__cta {

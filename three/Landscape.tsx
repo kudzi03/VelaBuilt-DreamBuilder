@@ -4,10 +4,11 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { GARDEN, MAIN, WING } from "@/lib/spec";
+import { TIERS } from "@/lib/quality";
 import { useDemo } from "@/lib/store";
 import { SUN_DIR } from "./env";
 import { box, merge, type Placed } from "./geom";
-import { buildImpostors, IMPOSTOR_SUN, type PlantId, type PlantPlacement } from "./impostor";
+import { buildImpostors, IMPOSTOR_SUN, setCoverage, type PlantId, type PlantPlacement } from "./impostor";
 import { pbr, tex } from "./materials";
 import { rng } from "./proc";
 
@@ -251,6 +252,8 @@ export function Landscape() {
     }
     return meshes;
   }, [hi]);
+  const msaa = TIERS[tier].msaa > 0;
+  useEffect(() => setCoverage(plants, msaa), [plants, msaa]);
   useEffect(
     () => () =>
       plants.forEach((m) => {

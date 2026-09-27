@@ -107,6 +107,10 @@ const VERT = /* glsl */ `
   vImpUv1 = frameUv(c1, p); vImpCell1 = c1;
   vImpUv2 = frameUv(c2, p); vImpCell2 = c2;
   vImpYaw = iYaw;
+  // trees dissolve as the lens comes within a few metres of the crown: camera flights pass close,
+  // and a billboard that near reads as a blur, not a tree (shrubs stay: shots are composed with them)
+  float impTall = step(3.0, 2.0 * uImpCY * iS);
+  vImpNear = mix(1.0, smoothstep(1.5, 8.0, length(cameraPosition - iCenter) - uImpR * iS * 0.55), impTall);
 `;
 
 const VARYINGS = /* glsl */ `
@@ -114,6 +118,7 @@ varying vec3 vImpW;
 varying vec2 vImpUv0; varying vec2 vImpUv1; varying vec2 vImpUv2;
 varying vec2 vImpCell0; varying vec2 vImpCell1; varying vec2 vImpCell2;
 varying float vImpYaw;
+varying float vImpNear;
 `;
 
 const SAMPLE = /* glsl */ `
@@ -156,6 +161,7 @@ export function impostorMaterial(id: PlantId, hiRes: boolean) {
         `vec4 impC = impSample(uImpColor);
         vec4 impN = impSample(uImpNormal);
         float impA = impC.a;
+        if (vImpNear < 0.999 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= vImpNear) discard;
         // atlases store straight (not premultiplied) colour, dilated past the silhouette
         diffuseColor.rgb *= impC.rgb / max(vImpW.x + vImpW.y + vImpW.z, 1e-3);
         diffuseColor.a = impA;`,
@@ -227,6 +233,19 @@ const _q = new THREE.Quaternion();
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
+
+/**
+ * With MSAA, alpha-to-coverage turns the leaf cut-out into coverage: silhouettes resolve soft
+ * instead of stair-stepped (three sharpens the alpha with fwidth, so crowns don't go fuzzy).
+ */
+export function setCoverage(meshes: THREE.InstancedMesh[], on: boolean) {
+  for (const m of meshes) {
+    const mat = m.material as THREE.Material;
+    if (mat.alphaToCoverage === on) continue;
+    mat.alphaToCoverage = on;
+    mat.needsUpdate = true;
+  }
+}
 
 /** Instanced impostors for one species. Heights are real metres; the bake records the source height. */
 export function buildImpostors(id: PlantId, list: PlantPlacement[], hiRes: boolean) {

@@ -24,8 +24,15 @@ function layoutFor(w: number, h: number): Layout {
   return "desktop";
 }
 
+/** Where an element comes to rest: panels slide in, so their entry transform is taken out. */
 function rect(sel: string) {
-  return document.querySelector(sel)?.getBoundingClientRect() ?? null;
+  const el = document.querySelector(sel);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  const t = getComputedStyle(el).transform;
+  if (!t || t === "none") return r;
+  const m = new DOMMatrixReadOnly(t);
+  return new DOMRect(r.x - m.m41, r.y - m.m42, r.width, r.height);
 }
 
 function computeInsets(): Insets {

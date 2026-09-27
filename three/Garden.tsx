@@ -5,10 +5,11 @@ import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { GARDEN as G, MAIN, WING } from "@/lib/spec";
+import { TIERS } from "@/lib/quality";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty, SKY_GLSL, SKY_UNIFORMS } from "./Atmosphere";
 import { box, merge, rbox, type Placed } from "./geom";
-import { buildImpostors, type PlantId, type PlantPlacement } from "./impostor";
+import { buildImpostors, setCoverage, type PlantId, type PlantPlacement } from "./impostor";
 import { lampLit, registerLamps, unregisterLamps, updateLampViewPositions, type Lamp } from "./lamps";
 import { sharedGround } from "./Landscape";
 import { pbr, solid } from "./materials";
@@ -255,6 +256,8 @@ export function Garden() {
     const build = (rec: Record<string, PlantPlacement[]>) => Object.entries(rec).filter(([, l]) => l.length).map(([id, l]) => buildImpostors(id as PlantId, l, hi));
     return { core: build(pl.core), lush: build(pl.lush) };
   }, [hi]);
+  const msaa = TIERS[tier].msaa > 0;
+  useEffect(() => setCoverage([...plants.core, ...plants.lush], msaa), [plants, msaa]);
   useEffect(
     () => () =>
       [...plants.core, ...plants.lush].forEach((m) => {

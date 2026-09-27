@@ -157,7 +157,7 @@ architectural photography. Pre-overhaul state: git tag `pre-visual-upgrade`.
 | Roofing | Procedural shingles | Laminated shingles, concrete tile, slate, standing seam from scans; weathered "before" with algae streaks and lichen |
 | Steel | Plain extrusions | Filleted I sections, hollow sections, end plates, bolts, gussets, anchor bolts on pads; the house burns away along a glowing section plane; spec callouts |
 | HVAC | Glowing tubes and light cones | X-ray sheet-metal ducts with restrained airflow particles (cool blue / warm amber), solid equipment (CC0 outdoor unit), an east shot for outdoor-unit problems |
-| Camera | Orbit targets with focal offset (moved the camera to clear the UI) | Photographer shots: position, target, lens; level verticals with real lens shift (off-axis projection) so the UI never moves the camera |
+| Camera | Orbit targets with focal offset (moved the camera to clear the UI); damped moves that cut through walls and tree crowns | Photographer shots: position, target, lens; level verticals with real lens shift (off-axis projection) so the UI never moves the camera. Moves between shots are planned flights (`three/flight.ts`): round the building, lifted over tree crowns, into the kitchen only through its glass wall, re-framed mid-flight without stopping |
 | UI | Light paper glass, sans headline, icon cards | Dark smoked glass over the scene, warm off-white type, bronze accent, Instrument Serif display, industry filmstrip of rendered stills, a loader that draws the house |
 
 Rules that came out of the QA passes (worth keeping):
@@ -168,3 +168,8 @@ Rules that came out of the QA passes (worth keeping):
 - Interiors lit by the open sky look flat and tinted; a captured room probe fixes both.
 - Lamps are warm white, not orange: an interior photographer white-balances for them.
 - Don't edit source files while a QA render is running: hot reload restarts the page.
+- Check every camera move against the scene, not just the shots: a damped orbit round a moving
+  target happily flies through the house. The planner's volumes are the spec; the QA probe raycasts
+  the planned path against the real meshes and tree crowns.
+- Measure UI insets where panels come to rest, not mid-entry-animation, or the shot re-frames
+  (and the camera re-plans) several times while the panel slides in.

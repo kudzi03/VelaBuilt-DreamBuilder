@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { IndustryId } from "@/lib/industries";
 import { useDemo, type Insets } from "@/lib/store";
+import { crowns, inKitchen, planFlight, type Flight } from "./flight";
 
 type V3 = [number, number, number];
 
@@ -26,6 +27,8 @@ export interface Shot {
   fov: number;
   /** subject size (metres, at the target) that must stay in frame on any screen */
   fit: [number, number];
+  /** how far the camera may step back to fit the subject before widening the lens (factor; interiors: 1, the room is the limit) */
+  maxBack?: number;
   /** how far the subject may reach under side/bottom UI (0 = never, 1 = ignore it) — hero copy sits over sky */
   overlap?: number;
   /** how far the visitor may swing round (radians) */
@@ -44,7 +47,7 @@ export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal" | "hvacOutdoo
   roofing: { pos: [15.5, 12.5, 21], target: [0.6, 5.2, 0.4], fov: 36, fit: [17, 12], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
   solar: { pos: [9.5, 13.5, 20.5], target: [0.2, 6.2, 1.8], fov: 34, fit: [14, 9], orbit: 0.45, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
   // standing at the dining end, looking down the pavilion: island, gable wall, garden glass on the left
-  remodeling: { pos: [0.3, 1.45, -4.55], target: [2.6, 1.85, -11.6], level: true, fov: 50, fit: [7, 3.4], orbit: 0.4, tilt: [0.12, 0.12], zoom: [0.8, 1.02] },
+  remodeling: { pos: [0.3, 1.45, -4.55], target: [2.6, 1.85, -11.6], level: true, fov: 50, fit: [7, 3.4], maxBack: 1, orbit: 0.4, tilt: [0.12, 0.12], zoom: [0.8, 1.02] },
   landscaping: { pos: [-15.8, 3.1, -16.4], target: [-6.4, 0.9, -8.4], fov: 42, fit: [15, 8], orbit: 0.4, tilt: [0.25, 0.15], zoom: [0.75, 1.2] },
   hvac: { pos: [-15.5, 9.5, 14], target: [0.2, 3.2, -2.6], fov: 38, fit: [19, 11], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
   // HVAC problems at the outdoor unit: from the east, the unit, the line set up the wall, the attic beyond
@@ -77,7 +80,7 @@ export function frame(shot: Shot, w: number, h: number, insets: Insets) {
   let dist = d0;
   if (need(d0) > t) {
     // step back first (a photographer would), then widen the lens
-    dist = Math.min(d0 * 1.3, (d0 * need(d0)) / t);
+    dist = Math.min(d0 * (shot.maxBack ?? 1.3), (d0 * need(d0)) / t);
     t = Math.max(t, need(dist));
   }
   const fov = Math.min(72, THREE.MathUtils.radToDeg(2 * Math.atan(t)));
@@ -104,6 +107,25 @@ function setShift(cam: THREE.PerspectiveCamera, w: number, h: number, sx: number
 
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
+type V6 = [number, number, number, number, number, number];
+interface ActiveFlight extends Flight {
+  t: number;
+  key: string;
+  /** where the camera lands and what it looks at */
+  end: V6;
+  /** re-framing corrections: offsets blend from A to B between t = tr and the end of the move */
+  tr: number;
+  offA: THREE.Vector3;
+  offB: THREE.Vector3;
+  lookA: THREE.Vector3;
+  lookB: THREE.Vector3;
+}
+/** how much of a mid-flight correction applies at time t, when it was made at tr */
+const retarget = (t: number, tr: number) => {
+  const x = tr >= 1 ? 1 : THREE.MathUtils.clamp((t - tr) / (1 - tr), 0, 1);
+  return x * x * (3 - 2 * x);
+};
+
 export let resetView: () => void = () => {};
 
 /** QA: `?cam=x,y,z&look=x,y,z&fov=n` pins the camera (composition work, screenshots). */
@@ -118,7 +140,7 @@ const DEBUG_CAM = (() => {
 
 export function CameraRig() {
   const cc = useRef<CameraControlsImpl>(null);
-  const { size, camera } = useThree();
+  const { size, camera, scene } = useThree();
   const phase = useDemo((s) => s.phase);
   const industry = useDemo((s) => s.industry);
   const insets = useDemo((s) => s.insets);
@@ -127,8 +149,11 @@ export function CameraRig() {
   const arrival = useRef({ active: true, t: 0 });
   const interacting = useRef(false);
   const idle = useRef({ t: 0, base: new THREE.Vector3(), right: new THREE.Vector3(), key: "" });
-  // lens: focal length and shift ease together with the move
-  const lens = useRef({ from: [36, 0, 0], to: [36, 0, 0], t: 1 });
+  // lens: focal length and shift ease together with the move (`cur` is what the camera has now)
+  const lens = useRef({ from: [36, 0, 0], to: [36, 0, 0], cur: [36, 0, 0], t: 1, dur: 1.6 });
+  // the move in progress between shots (planned round the building, flown at an eased pace)
+  const flight = useRef<ActiveFlight | null>(null);
+  const vel = useRef({ prev: new THREE.Vector3(), speed: 0 });
 
   const outdoor = industry === "hvac" && (hvacIssue === "cooling" || hvacIssue === "maintenance" || hvacIssue === "replace");
   const shotKey: keyof typeof SHOTS =
@@ -157,19 +182,44 @@ export function CameraRig() {
       }
       const shot = SHOTS[shotKey];
       const f = frame(shot, size.width, size.height, insets);
-      const smooth = transition && !reducedMotion;
-      // lens changes ride along with the move rather than snapping
-      const now = lens.current.t < 1 ? lens.current.to : [cam.fov, ...(lens.current.to.slice(1) as [number, number])];
-      lens.current = { from: [...now], to: [f.fov, ...f.shift], t: smooth ? 0 : 1 };
-      if (!smooth) {
+      const end: V6 = [f.pos.x, f.pos.y, f.pos.z, f.look.x, f.look.y, f.look.z];
+      const p0 = c.getPosition(new THREE.Vector3());
+      const t0 = c.getTarget(new THREE.Vector3());
+      const moving = transition && !reducedMotion;
+      const cur = flight.current;
+      // the lens eases from what the camera has right now to the new shot's
+      const L = lens.current;
+      const retune = (dur: number) => {
+        lens.current = { ...L, from: [...L.cur], to: [f.fov, ...f.shift], t: 0, dur };
+      };
+      if (moving && cur && cur.key === shotKey) {
+        // same shot, re-framed mid-flight (the panel was measured, the window resized):
+        // bend the rest of the move onto the new mark instead of starting over
+        const moved = f.pos.distanceTo(new THREE.Vector3(cur.end[0], cur.end[1], cur.end[2]));
+        if (moved < 4 && inKitchen(f.pos) === inKitchen(new THREE.Vector3(cur.end[0], cur.end[1], cur.end[2]))) {
+          const k = retarget(cur.t, cur.tr);
+          cur.offA.lerp(cur.offB, k);
+          cur.lookA.lerp(cur.lookB, k);
+          cur.offB.add(new THREE.Vector3(end[0] - cur.end[0], end[1] - cur.end[1], end[2] - cur.end[2]));
+          cur.lookB.add(new THREE.Vector3(end[3] - cur.end[3], end[4] - cur.end[4], end[5] - cur.end[5]));
+          cur.tr = cur.t;
+          cur.end = end;
+          retune(Math.max(0.35, cur.dur * (1 - cur.t)));
+          return;
+        }
+      }
+      const F = moving && p0.distanceTo(f.pos) + t0.distanceTo(f.look) > 0.05 ? planFlight(p0, t0, f.pos, f.look, crowns(scene), cur ? vel.current.speed : 0) : null;
+      if (F) retune(F.dur);
+      else {
+        lens.current = { ...L, from: [f.fov, ...f.shift], to: [f.fov, ...f.shift], cur: [f.fov, ...f.shift], t: 1 };
         cam.fov = f.fov;
         setShift(cam, size.width, size.height, ...f.shift);
         cam.updateProjectionMatrix();
       }
       const off = f.pos.clone().sub(f.look);
       const sph = new THREE.Spherical().setFromVector3(off);
-      // take the short way round
-      const az = sph.theta + Math.round((c.azimuthAngle - sph.theta) / (Math.PI * 2)) * Math.PI * 2;
+      // setLookAt leaves the controls on exactly this azimuth, so the swing limits centre on it
+      const az = sph.theta;
       const orbit = shot.orbit ?? 0.5;
       const tilt = shot.tilt ?? [0.2, 0.15];
       const zoom = shot.zoom ?? [0.8, 1.2];
@@ -182,12 +232,22 @@ export function CameraRig() {
       c.maxPolarAngle = Math.max(sph.phi, Math.min(Math.PI / 2 + 0.12, sph.phi + tilt[0], ground));
       c.minDistance = r * zoom[0];
       c.maxDistance = r * zoom[1];
-      c.smoothTime = reducedMotion ? 0.05 : 1.15;
-      c.setLookAt(f.pos.x, f.pos.y, f.pos.z, f.look.x, f.look.y, f.look.z, smooth);
+      c.smoothTime = reducedMotion ? 0.05 : 0.3;
       c.setFocalOffset(0, 0, 0, false);
       idle.current.key = "";
+      if (F) {
+        // the visitor can't steer mid-flight; the controls pick up where the camera lands
+        const zero = () => new THREE.Vector3();
+        flight.current = { ...F, t: 0, key: shotKey, end, tr: 0, offA: zero(), offB: zero(), lookA: zero(), lookB: zero() };
+        c.enabled = false;
+        if (location.search.includes("debug")) (window as unknown as { __flight: unknown }).__flight = { points: F.points.map((p) => p.toArray()), dur: F.dur, length: F.length };
+      } else {
+        flight.current = null;
+        c.enabled = true;
+        c.setLookAt(...end, false);
+      }
     },
-    [shotKey, size.width, size.height, insets, reducedMotion, camera],
+    [shotKey, size.width, size.height, insets, reducedMotion, camera, scene],
   );
 
   useEffect(() => {
@@ -201,11 +261,13 @@ export function CameraRig() {
       const c = cc.current;
       if (!c) return;
       arrival.current.active = false;
+      flight.current = null;
+      c.enabled = true;
       const cam = camera as THREE.PerspectiveCamera;
       if (fov) cam.fov = fov;
       setShift(cam, size.width, size.height, 0, 0);
       cam.updateProjectionMatrix();
-      lens.current = { from: [cam.fov, 0, 0], to: [cam.fov, 0, 0], t: 1 };
+      lens.current = { from: [cam.fov, 0, 0], to: [cam.fov, 0, 0], cur: [cam.fov, 0, 0], t: 1, dur: 1.6 };
       c.minDistance = 0;
       c.maxDistance = Infinity;
       c.minPolarAngle = 0;
@@ -257,7 +319,7 @@ export function CameraRig() {
     };
   }, []);
 
-  const tmp = useRef({ p: new THREE.Vector3(), t: new THREE.Vector3() });
+  const tmp = useRef({ p: new THREE.Vector3(), t: new THREE.Vector3(), o: new THREE.Vector3() });
 
   useFrame((_, delta) => {
     const c = cc.current;
@@ -267,12 +329,35 @@ export function CameraRig() {
     // lens: ease focal length and shift with the move
     const L = lens.current;
     if (L.t < 1) {
-      L.t = Math.min(1, L.t + dt / 1.6);
+      L.t = Math.min(1, L.t + dt / L.dur);
       const k = ease(L.t);
-      cam.fov = THREE.MathUtils.lerp(L.from[0], L.to[0], k);
-      setShift(cam, size.width, size.height, THREE.MathUtils.lerp(L.from[1], L.to[1], k), THREE.MathUtils.lerp(L.from[2], L.to[2], k));
+      for (let i = 0; i < 3; i++) L.cur[i] = THREE.MathUtils.lerp(L.from[i], L.to[i], k);
+      cam.fov = L.cur[0];
+      setShift(cam, size.width, size.height, L.cur[1], L.cur[2]);
       cam.updateProjectionMatrix();
     }
+    const F = flight.current;
+    const V = vel.current;
+    if (F) {
+      F.t = Math.min(1, F.t + dt / F.dur);
+      const p = F.at(F.progress(F.t), tmp.current.p);
+      const k = ease(THREE.MathUtils.clamp((F.t - F.lookFrom) / (F.lookTo - F.lookFrom), 0, 1));
+      const t = tmp.current.t.copy(F.look0).lerp(F.look1, k);
+      // re-framing corrections fade in over the rest of the move
+      const r = retarget(F.t, F.tr);
+      p.add(tmp.current.o.copy(F.offA).lerp(F.offB, r));
+      t.add(tmp.current.o.copy(F.lookA).lerp(F.lookB, r));
+      if (F.t < 1) c.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, false);
+      else {
+        c.setLookAt(...F.end, false);
+        flight.current = null;
+        c.enabled = true;
+      }
+      V.speed = dt > 0 ? V.prev.distanceTo(p) / dt : 0;
+      V.prev.copy(p);
+      return;
+    }
+    V.speed = 0;
     const a = arrival.current;
     if (DEBUG_CAM && a.active) {
       a.active = false;
@@ -291,7 +376,7 @@ export function CameraRig() {
         cam.fov = f.fov;
         setShift(cam, size.width, size.height, ...f.shift);
         cam.updateProjectionMatrix();
-        lens.current = { from: [f.fov, ...f.shift], to: [f.fov, ...f.shift], t: 1 };
+        lens.current = { from: [f.fov, ...f.shift], to: [f.fov, ...f.shift], cur: [f.fov, ...f.shift], t: 1, dur: 1.6 };
       }
       const sceneReady = useDemo.getState().sceneReady;
       if (sceneReady) a.t = Math.min(1, a.t + dt / 7.5);

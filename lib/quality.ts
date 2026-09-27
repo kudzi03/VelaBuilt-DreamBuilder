@@ -50,14 +50,17 @@ function gpuString(): string {
   }
 }
 
+/** `?quality=` accepts the tier names used in the docs (ultra / standard / mobile) and the internal ones. */
+const ALIAS: Record<string, Tier> = { ultra: "high", high: "high", standard: "medium", medium: "medium", mobile: "low", low: "low" };
+
 /**
  * First guess at a tier. The runtime PerformanceMonitor then steps it down (or up)
  * based on measured frame rate, so a wrong guess corrects itself within seconds.
  */
 export function detectTier(): Tier {
   if (typeof window === "undefined") return "medium";
-  const q = new URLSearchParams(location.search).get("quality");
-  if (q === "low" || q === "medium" || q === "high") return q;
+  const q = ALIAS[new URLSearchParams(location.search).get("quality") ?? ""];
+  if (q) return q;
 
   const gpu = gpuString().toLowerCase();
   const touch = isTouchDevice();
