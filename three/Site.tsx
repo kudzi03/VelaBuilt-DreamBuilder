@@ -18,9 +18,8 @@ export interface TreeSpec {
 
 const SITE_TREES: TreeSpec[] = [
   { x: -10.8, z: 8.6, kind: "round", s: 1.35 },
-  { x: -4.8, z: 12.4, kind: "multi", s: 0.9 },
-  { x: 4.6, z: 12.8, kind: "multi", s: 0.8 },
-  { x: 14.8, z: 7.5, kind: "round", s: 1.1 },
+  { x: -6.2, z: 12.4, kind: "multi", s: 0.9 },
+  { x: 16.8, z: 4.5, kind: "round", s: 1.1 },
   { x: 12.9, z: -7.5, kind: "column", s: 1 },
   { x: 12.9, z: -11.2, kind: "column", s: 1.1 },
   { x: 12.9, z: -14.8, kind: "column", s: 0.95 },

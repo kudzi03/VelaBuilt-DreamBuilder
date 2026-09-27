@@ -336,7 +336,7 @@ export function Garden() {
       bulb: new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffd89c").multiplyScalar(4), toneMapped: true }),
       pool: new THREE.MeshBasicMaterial({ map: glow, color: "#ffc98a", transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
     };
-  }, []);
+  }, [lazy]);
   useEffect(
     () => () => {
       lazy.dispose();

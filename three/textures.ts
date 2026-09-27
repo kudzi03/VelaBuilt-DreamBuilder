@@ -6,14 +6,13 @@ export const PHOTO = {
   wood_floor: 1.7,
   herringbone_parquet: 3.4,
   wood_floor_deck: 1.8,
-  patio_tiles: 2.15,
   american_walnut_veneer: 1.0,
   oak_veneer_01: 1.83,
   floor_tiles_06: 3.0,
 } as const;
 
 export type PhotoName = keyof typeof PHOTO;
-const HAS_NORMAL: PhotoName[] = ["wood_floor", "herringbone_parquet", "wood_floor_deck", "patio_tiles"];
+const HAS_NORMAL: PhotoName[] = ["wood_floor", "herringbone_parquet", "wood_floor_deck"];
 
 const cache = new Map<string, THREE.Texture>();
 const loader = typeof window !== "undefined" ? new THREE.TextureLoader() : null;

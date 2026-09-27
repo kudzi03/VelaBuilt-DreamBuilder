@@ -42,22 +42,27 @@ function summary(f: Form) {
 export function LeadForm() {
   const open = useDemo((s) => s.leadFormOpen);
   const set = useDemo((s) => s.set);
+  return (
+    <Modal open={open} onClose={() => set({ leadFormOpen: false })} label="Build this for my business">
+      <LeadFormBody onDone={() => set({ leadFormOpen: false })} />
+    </Modal>
+  );
+}
+
+/** Mounted each time the modal opens, so it starts from what the visitor explored. */
+function LeadFormBody({ onDone }: { onDone: () => void }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
-  const [f, setF] = useState<Form>({ name: "", company: "", industry: "", website: "", contact: "", wants: "", hp: "" });
-
-  useEffect(() => {
-    if (!open) return;
+  const [f, setF] = useState<Form>(() => {
     const s = useDemo.getState();
     const top = topIndustry(s);
-    setF((x) => ({
-      ...x,
-      company: x.company || s.company || "",
-      industry: x.industry || (top ? INDUSTRIES.find((i) => i.id === top)!.name : ""),
-    }));
-    if (status !== "sent") setStatus("idle");
+    return { name: "", company: s.company || "", industry: top ? INDUSTRIES.find((i) => i.id === top)!.name : "", website: "", contact: "", wants: "", hp: "" };
+  });
+
+  useEffect(() => {
+    const top = topIndustry(useDemo.getState());
     track("contact_started", { channel: "form", industry: top ?? "none" });
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const up = (k: keyof Form) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
 
@@ -99,7 +104,7 @@ export function LeadForm() {
   const wa = whatsappLink(summary(f));
 
   return (
-    <Modal open={open} onClose={() => set({ leadFormOpen: false })} label="Build this for my business">
+    <>
       {status === "sent" ? (
         <div className="sent">
           <span className="sent__icon">
@@ -107,7 +112,7 @@ export function LeadForm() {
           </span>
           <h2 className="modal__title">Thanks{f.name ? `, ${f.name.split(" ")[0]}` : ""}. It&apos;s with us.</h2>
           <p className="muted">A person at VelaBuilt reads every enquiry and replies with an honest assessment — including when we&apos;re not the right fit.</p>
-          <button type="button" className="btn btn--secondary" onClick={() => set({ leadFormOpen: false })}>
+          <button type="button" className="btn btn--secondary" onClick={onDone}>
             <span>Back to the demo</span>
           </button>
         </div>
@@ -203,6 +208,6 @@ export function LeadForm() {
           </p>
         </form>
       )}
-    </Modal>
+    </>
   );
 }

@@ -43,7 +43,7 @@ function computeInsets(): Insets {
       const copy = rect(".intro__copy");
       const choose = rect(".intro__choose");
       if (L === "mobile") return { ...zero, top: Math.max(top, (copy?.bottom ?? 260) + 4), bottom: choose ? h - choose.top + 4 : 320 };
-      if (L === "landscape") return { ...zero, left: copy ? copy.right + 12 : w * 0.45 };
+      if (L === "landscape") return { ...zero, left: Math.max(copy?.right ?? 0, choose?.right ?? 0, w * 0.4) + 12 };
       return { ...zero, left: copy ? Math.min(copy.right + 16, w * 0.5) : w * 0.42, bottom: choose ? h - choose.top + 8 : 190 };
     }
     case "explore":
@@ -102,6 +102,7 @@ function useLayoutTracking() {
 }
 
 function Hint() {
+  const webgl = useDemo((s) => s.webgl);
   const phase = useDemo((s) => s.phase);
   const industry = useDemo((s) => s.industry);
   const [seen, setSeen] = useState(false);
@@ -125,24 +126,12 @@ function Hint() {
   const touch = typeof window !== "undefined" && isTouchDevice();
   return (
     <AnimatePresence>
-      {show && phase === "explore" && (
+      {show && webgl && phase === "explore" && (
         <motion.p className="hint" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
           <Orbit size={16} /> {touch ? "Drag to look around · pinch to zoom" : "Drag to look around · scroll to zoom"}
         </motion.p>
       )}
     </AnimatePresence>
-  );
-}
-
-function Fallback() {
-  const webgl = useDemo((s) => s.webgl);
-  if (webgl) return null;
-  return (
-    <div className="fallback" role="note">
-      <p>
-        This device couldn&apos;t start the 3D view. Everything else still works — pick a business, configure it, and watch the lead flow through.
-      </p>
-    </div>
   );
 }
 
@@ -159,7 +148,7 @@ export function Experience() {
   const phase = useDemo((s) => s.phase);
   const webgl = useDemo((s) => s.webgl);
   const layout = useDemo((s) => s.layout);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useDemo((s) => s.booted);
   useLayoutTracking();
 
   useEffect(() => {
@@ -170,9 +159,8 @@ export function Experience() {
     if (params.has("debug")) (window as unknown as { __store: typeof useDemo }).__store = useDemo;
     const gl = webglAvailable();
     const tier = detectTier();
-    s.set({ tier, reducedMotion: prefersReducedMotion(), company, ref, webgl: gl, layout: layoutFor(innerWidth, innerHeight) });
+    s.set({ tier, reducedMotion: prefersReducedMotion(), company, ref, webgl: gl, layout: layoutFor(innerWidth, innerHeight), booted: true });
     setAnalyticsContext({ tier, ref: ref ?? undefined, layout: layoutFor(innerWidth, innerHeight), personalised: !!company });
-    setMounted(true);
     if (!gl) {
       s.set({ sceneReady: true, phase: "intro" });
       track("demo_loaded", { tier: "none", webgl: false });
@@ -197,7 +185,10 @@ export function Experience() {
   }, []);
 
   return (
-    <main className="app" data-phase={phase} data-layout={layout}>
+    <main className="app" id="main" data-phase={phase} data-layout={layout}>
+      <a className="skip-link" href={phase === "explore" || phase === "qualify" ? "#panel" : phase === "flow" ? "#flow" : "#main-content"}>
+        Skip to {phase === "explore" || phase === "qualify" ? "controls" : "content"}
+      </a>
       {mounted && webgl && <Stage />}
       {!webgl && <div className="poster" aria-hidden />}
       <TopBar />
@@ -208,7 +199,6 @@ export function Experience() {
       <Flow />
       <Reveal />
       <Hint />
-      <Fallback />
       <LeadForm />
       <HowItWorks />
       <ShareSheet />

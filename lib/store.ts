@@ -125,6 +125,8 @@ export interface DemoState extends Configs {
   industry: IndustryId | null;
   lastIndustry: IndustryId | null;
   sceneReady: boolean;
+  /** client settings detected (tier, webgl, params) — the 3D stage may start */
+  booted: boolean;
   webgl: boolean;
   tier: Tier;
   aoOff: boolean;
@@ -174,6 +176,7 @@ export const useDemo = create<DemoState>()(
     industry: null,
     lastIndustry: null,
     sceneReady: false,
+    booted: false,
     webgl: true,
     tier: "high",
     aoOff: false,

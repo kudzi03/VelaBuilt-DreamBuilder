@@ -132,6 +132,7 @@ export function Panel() {
       <motion.aside
         key="panel"
         id="panel"
+        tabIndex={-1}
         className="panel"
         data-layout={layout}
         data-dragging={drag != null}

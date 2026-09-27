@@ -100,9 +100,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body>
-        <a className="skip-link" href="#panel">
-          Skip to controls
-        </a>
         {children}
         <Analytics />
       </body>

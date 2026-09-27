@@ -32,13 +32,14 @@ export function Intro() {
   const phase = useDemo((s) => s.phase);
   const company = useDemo((s) => s.company);
   const reduced = useDemo((s) => s.reducedMotion);
+  const webgl = useDemo((s) => s.webgl);
   const show = phase === "intro";
   const words = HEADLINE.split(" ");
   const d = reduced ? 0 : 1;
   return (
     <AnimatePresence>
       {show && (
-        <motion.section className="intro" aria-labelledby="intro-title" initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.5 } }}>
+        <motion.section className="intro" id="main-content" tabIndex={-1} aria-labelledby="intro-title" initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.5 } }}>
           <div className="intro__copy">
             <motion.p className="mono intro__eyebrow" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 * d, duration: 0.8, ease: EASE }}>
               {company ? `Prepared for ${company}` : "Interactive demo · VelaBuilt"}
@@ -56,6 +57,11 @@ export function Intro() {
                 </motion.span>
               ))}
             </h1>
+            {!webgl && (
+              <p className="intro__note" role="note">
+                This device can&apos;t show the 3D view, so you&apos;ll see stills. Everything else works: pick a business, configure it, and watch the lead come through.
+              </p>
+            )}
           </div>
           <motion.div className="intro__choose" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.9 * d, duration: 0.8 }}>
             <h2 className="intro__prompt">Choose a business.</h2>

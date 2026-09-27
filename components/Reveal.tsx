@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { CONTACT_EMAIL, SITE_URL, WHATSAPP_NUMBER } from "@/lib/config";
 import { INDUSTRY_BY_ID } from "@/lib/industries";
@@ -24,7 +24,7 @@ export function Reveal() {
   return (
     <AnimatePresence>
       {phase === "reveal" && (
-        <motion.section className="reveal" aria-labelledby="reveal-title" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}>
+        <motion.section className="reveal" id="main-content" tabIndex={-1} aria-labelledby="reveal-title" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}>
           <div className="reveal__inner">
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 * d, duration: 0.9, ease: EASE }} className="reveal__brand">
               <Mark size={40} />
@@ -194,30 +194,39 @@ export function HowItWorks() {
 export function ShareSheet() {
   const open = useDemo((s) => s.shareOpen);
   const set = useDemo((s) => s.set);
+  const close = useCallback(() => set({ shareOpen: false }), [set]);
+  return (
+    <Modal open={open} onClose={close} label="Send this demo">
+      <ShareBody onDone={close} />
+    </Modal>
+  );
+}
+
+const SHARE_TEXT = "See what your customers could do on your website before they ever call you — interactive demo by VelaBuilt:";
+
+function ShareBody({ onDone }: { onDone: () => void }) {
   const [copied, setCopied] = useState(false);
   const url = `${SITE_URL}/?ref=share`;
-  const text = "See what your customers could do on your website before they ever call you — interactive demo by VelaBuilt:";
   useEffect(() => {
-    if (!open) return;
-    setCopied(false);
+    // Phones get the native share sheet straight away; the buttons below remain as a fallback.
     if (typeof navigator !== "undefined" && "share" in navigator && (navigator as Navigator).canShare?.({ url })) {
       track("share_clicked", { method: "native" });
       navigator
-        .share({ title: "The Future of Contractor Sales", text, url })
-        .then(() => set({ shareOpen: false }))
+        .share({ title: "The Future of Contractor Sales", text: SHARE_TEXT, url })
+        .then(onDone)
         .catch(() => {});
     }
-  }, [open, set, url]);
+  }, [url, onDone]);
   return (
-    <Modal open={open} onClose={() => set({ shareOpen: false })} label="Send this demo">
+    <>
       <p className="mono modal__eyebrow">Share</p>
       <h2 className="modal__title">Know a business owner who should see this?</h2>
       <div className="share">
-        <a className="btn btn--secondary" href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`} target="_blank" rel="noopener" onClick={() => track("share_clicked", { method: "whatsapp" })}>
+        <a className="btn btn--secondary" href={`https://wa.me/?text=${encodeURIComponent(`${SHARE_TEXT} ${url}`)}`} target="_blank" rel="noopener" onClick={() => track("share_clicked", { method: "whatsapp" })}>
           <WhatsApp size={18} />
           <span>Send on WhatsApp</span>
         </a>
-        <a className="btn btn--secondary" href={`mailto:?subject=${encodeURIComponent("You need to see this")}&body=${encodeURIComponent(`${text}\n\n${url}`)}`} onClick={() => track("share_clicked", { method: "email" })}>
+        <a className="btn btn--secondary" href={`mailto:?subject=${encodeURIComponent("You need to see this")}&body=${encodeURIComponent(`${SHARE_TEXT}\n\n${url}`)}`} onClick={() => track("share_clicked", { method: "email" })}>
           <Mail size={18} />
           <span>Send by email</span>
         </a>
@@ -232,6 +241,6 @@ export function ShareSheet() {
           <span>{copied ? "Link copied" : "Copy link"}</span>
         </button>
       </div>
-    </Modal>
+    </>
   );
 }

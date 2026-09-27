@@ -191,7 +191,7 @@ export function houseGeometry() {
 }
 
 export function House() {
-  const geo = useMemo(houseGeometry, []);
+  const geo = useMemo(() => houseGeometry(), []);
   const mats = useMemo(() => {
     const pl = plaster();
     const cd = cedar();

@@ -165,14 +165,17 @@ export function CameraRig() {
       const sceneReady = useDemo.getState().sceneReady;
       if (sceneReady) a.t = Math.min(1, a.t + dt / 6.5);
       const k = ease(a.t);
-      const az = THREE.MathUtils.lerp(1.12, shot.azimuth, k);
-      const pol = THREE.MathUtils.lerp(1.5, shot.polar, k);
-      const dist = THREE.MathUtils.lerp(f.dist * 0.42, f.dist, k);
-      const ty = THREE.MathUtils.lerp(1.6, shot.target[1], k);
-      const tgt: V3 = [shot.target[0], ty, shot.target[2]];
+      // arriving up the front path: low at the door, then rise and pull back to the hero
+      const az = THREE.MathUtils.lerp(0.12, shot.azimuth, k);
+      const pol = THREE.MathUtils.lerp(1.44, shot.polar, k);
+      const dist = THREE.MathUtils.lerp(f.dist * 0.5, f.dist, k);
+      const ty = THREE.MathUtils.lerp(2.4, shot.target[1], k);
+      const tgt: V3 = [THREE.MathUtils.lerp(0, shot.target[0], k), ty, THREE.MathUtils.lerp(1.5, shot.target[2], k)];
       const p = spherical({ ...shot, target: tgt }, az, pol, dist);
       c.setLookAt(p[0], p[1], p[2], tgt[0], tgt[1], tgt[2], false);
-      c.setFocalOffset(f.offX * k, f.offY * k, 0, false);
+      // offset scales with distance so the house stays clear of the headline for the whole move
+      const g = dist / f.dist;
+      c.setFocalOffset(f.offX * g, f.offY * g, 0, false);
       if (a.t >= 1) {
         a.active = false;
         apply(false);

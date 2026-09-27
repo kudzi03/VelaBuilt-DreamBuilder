@@ -25,7 +25,7 @@ export function Scenarios() {
 
   useEffect(() => {
     if (!sceneReady) return;
-    prefetch(["wood_floor", "oak_veneer_01", "wood_floor_deck", "patio_tiles"]);
+    prefetch(["wood_floor", "oak_veneer_01", "wood_floor_deck"]);
     let i = 0;
     let t: ReturnType<typeof setTimeout>;
     const next = () => {
@@ -38,18 +38,17 @@ export function Scenarios() {
     return () => clearTimeout(t);
   }, [sceneReady]);
 
-  useEffect(() => {
-    const layer = industry ? FOR[industry] : null;
-    if (layer) setOn((s) => (s.has(layer) ? s : new Set(s).add(layer)));
-  }, [industry]);
+  // The selected industry's layer mounts immediately, without waiting for its idle slot.
+  const selected = industry ? FOR[industry] : null;
+  const has = (l: Layer) => on.has(l) || selected === l;
 
   return (
     <>
       <Garden />
-      {on.has("hvac") && <Hvac />}
-      {on.has("solar") && <Solar />}
-      {on.has("steel") && <Steel />}
-      {on.has("kitchen") && <Kitchen />}
+      {has("hvac") && <Hvac />}
+      {has("solar") && <Solar />}
+      {has("steel") && <Steel />}
+      {has("kitchen") && <Kitchen />}
     </>
   );
 }

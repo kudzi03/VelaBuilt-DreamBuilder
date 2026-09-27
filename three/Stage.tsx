@@ -20,7 +20,7 @@ import { Site } from "./Site";
 const DOWN: Record<Tier, Tier> = { high: "medium", medium: "low", low: "low" };
 
 /** Marks the scene ready after a few real frames, then reports load time once. */
-function Ready({ t0 }: { t0: number }) {
+function Ready() {
   const frames = useRef(0);
   const done = useRef(false);
   const { gl } = useThree();
@@ -32,7 +32,8 @@ function Ready({ t0 }: { t0: number }) {
     const s = useDemo.getState();
     s.set({ sceneReady: true });
     if (s.phase === "loading") s.setPhase("intro");
-    track("demo_loaded", { tier: s.tier, ms: Math.round(performance.now() - t0), dpr: Number(gl.getPixelRatio().toFixed(2)) });
+    // performance.now() is measured from navigation start: this is time-to-first-3D-frame.
+    track("demo_loaded", { tier: s.tier, ms: Math.round(performance.now()), dpr: Number(gl.getPixelRatio().toFixed(2)) });
   });
   return null;
 }
@@ -86,7 +87,6 @@ function Adaptive() {
 export default function Stage() {
   const tier = useDemo((s) => s.tier);
   const T = TIERS[tier];
-  const t0 = useRef(typeof performance !== "undefined" ? performance.now() : 0);
   setTextureScale(T.textureSize === 512 ? 0.5 : 1);
 
   return (
@@ -120,7 +120,7 @@ export default function Stage() {
           <Effects />
         </Suspense>
       )}
-      <Ready t0={t0.current} />
+      <Ready />
     </Canvas>
   );
 }
