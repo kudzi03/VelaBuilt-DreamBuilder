@@ -84,7 +84,7 @@ lib/
 | Memory | textures ≤ 64 MB GPU (iOS WebView kill threshold safety) |
 
 Quality tiers (initial guess from device + GPU string, then `PerformanceMonitor`
-steps down/up at runtime; `?quality=low|medium|high` overrides):
+steps down/up at runtime; `?quality=ultra|standard|mobile` (or `high|medium|low`) overrides):
 
 | | High | Medium | Low |
 | --- | --- | --- | --- |
@@ -100,17 +100,18 @@ appear without staggered motion.
 
 ### Measured (production build)
 
-| | gzip |
+| | gzip / as served |
 | --- | --- |
-| Initial page JS (React, Next, UI, motion) | ~245 KB — within budget |
-| 3D stage chunk (three.js, R3F, camera controls, scene) | ~285 KB, loaded after first paint |
-| Post-processing chunk | ~100 KB, medium/high tiers only |
-| Share image | 93 KB (WhatsApp limit ~300 KB) |
+| Initial page JS (React, Next, UI, motion) | 244 KB — within budget |
+| 3D stage chunk (three.js, R3F, camera controls, scene) | 325 KB, loaded after first paint |
+| Post-processing chunk | 102 KB, medium/high tiers only |
+| Arrival-shot assets, desktop | 11.6 MB (textures 6.2, plant atlases 4.6, props 0.6, skies 0.3) |
+| Arrival-shot assets, phones | 3.8 MB (512 px variants on every tier) |
 
-The combined first-3D-frame download (~530 KB on low tier, ~630 KB on high) is above
-the original 400 KB target; the SSR headline and loader paint first, and three.js
-itself is ~60% of the 3D chunk. Removing drei's HDR environment loaders and splitting
-out post-processing recovered ~140 KB.
+The visual overhaul (section 8) traded the original "initial textures ≤ 600 KB" budget for
+photographed materials and vegetation. What keeps it honest: the loader shows real progress
+and lifts only when the arrival shot is complete (capped at 10 s), scenario layers load after
+the reveal, normal maps are encoded at WebP q84, and phones never download the 1024 px sets.
 
 ## 5. Assets
 

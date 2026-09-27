@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { GARDEN, MAIN, WING } from "@/lib/spec";
-import { TIERS } from "@/lib/quality";
+import { textureSizeFor, TIERS } from "@/lib/quality";
 import { useDemo } from "@/lib/store";
 import { SUN_DIR } from "./env";
 import { box, merge, type Placed } from "./geom";
@@ -180,6 +180,7 @@ function placeForest(count: number) {
 export function Landscape() {
   const tier = useDemo((s) => s.tier);
   const hi = tier !== "low";
+  const sharp = textureSizeFor(tier) === 1024;
 
   const mats = useMemo(() => {
     const drive = pbr("gravel", { roughness: 1, color: "#e4dccd", envMapIntensity: 0.6, scale: 0.8 });
@@ -243,7 +244,7 @@ export function Landscape() {
     const near = placeTrees();
     const far = placeForest(hi ? 150 : 70);
     const meshes: THREE.InstancedMesh[] = [];
-    for (const [id, list] of Object.entries(near)) if (list.length) meshes.push(buildImpostors(id as PlantId, list, hi));
+    for (const [id, list] of Object.entries(near)) if (list.length) meshes.push(buildImpostors(id as PlantId, list, sharp));
     for (const [id, list] of Object.entries(far)) {
       if (!list.length) continue;
       const mesh = buildImpostors(id as PlantId, list, false);
@@ -251,7 +252,7 @@ export function Landscape() {
       meshes.push(mesh);
     }
     return meshes;
-  }, [hi]);
+  }, [hi, sharp]);
   const msaa = TIERS[tier].msaa > 0;
   useEffect(() => setCoverage(plants, msaa), [plants, msaa]);
   useEffect(

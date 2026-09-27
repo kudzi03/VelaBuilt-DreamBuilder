@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { track } from "@/lib/analytics";
-import { TIERS } from "@/lib/quality";
+import { textureSizeFor, TIERS } from "@/lib/quality";
 import { useDemo, type Tier } from "@/lib/store";
 import { Atmosphere } from "./Atmosphere";
 import { CameraRig } from "./CameraRig";
@@ -23,24 +23,37 @@ const DOWN: Record<Tier, Tier> = { high: "medium", medium: "low", low: "low" };
 /** Filmic curve for the no-post path; the post path uses the matching ToneMapping effect. */
 const TONE = THREE.AgXToneMapping;
 
-/** Marks the scene ready after a few real frames, then reports load time once. */
+/** longest the loader waits for textures after the first frame */
+const REVEAL_CAP_MS = 10000;
+
+/**
+ * Marks the scene ready after a few real frames, then holds the loader until what the arrival
+ * shot needs has arrived (textures stream in after the first frame): the first thing a visitor
+ * sees is the finished property, not surfaces filling in. Capped, so a slow line still gets in.
+ */
 function Ready() {
   const frames = useRef(0);
   const done = useRef(false);
+  const t = useRef({ ready: 0, quiet: 0 });
   const { gl } = useThree();
   useFrame(() => {
     // QA harness: count rendered frames (debug only)
     const w = window as unknown as { __frames?: number };
     if (w.__frames !== undefined) w.__frames++;
-    if (done.current) return;
-    frames.current++;
-    if (frames.current < 4) return;
-    done.current = true;
+    const now = performance.now();
     const s = useDemo.getState();
-    s.set({ sceneReady: true });
-    if (s.phase === "loading") s.setPhase("intro");
-    // performance.now() is measured from navigation start: this is time-to-first-3D-frame.
-    track("demo_loaded", { tier: s.tier, ms: Math.round(performance.now()), dpr: Number(gl.getPixelRatio().toFixed(2)) });
+    if (!done.current) {
+      frames.current++;
+      if (frames.current < 4) return;
+      done.current = true;
+      t.current = { ready: now, quiet: now };
+      s.set({ sceneReady: true });
+      // performance.now() is measured from navigation start: this is time-to-first-3D-frame.
+      track("demo_loaded", { tier: s.tier, ms: Math.round(now), dpr: Number(gl.getPixelRatio().toFixed(2)) });
+    }
+    if (s.phase !== "loading") return;
+    if (useProgress.getState().active) t.current.quiet = now;
+    if (now - t.current.quiet > 250 || now - t.current.ready > REVEAL_CAP_MS) s.setPhase("intro");
   });
   return null;
 }
@@ -114,7 +127,7 @@ export default function Stage() {
   const tier = useDemo((s) => s.tier);
   const T = TIERS[tier];
   setTextureScale(T.textureSize === 512 ? 0.5 : 1);
-  setTextureBudget(T.textureSize);
+  setTextureBudget(textureSizeFor(tier));
 
   return (
     <Canvas

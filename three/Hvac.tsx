@@ -466,6 +466,11 @@ export function Hvac() {
 }
 
 if (typeof window !== "undefined") {
+  // the outdoor unit isn't in the arrival shot: fetch it once the property is on screen
   const idle = (cb: () => void) => ("requestIdleCallback" in window ? window.requestIdleCallback(cb, { timeout: 8000 }) : setTimeout(cb, 4000));
-  idle(() => useGLTF.preload(MODEL, false, true));
+  const unsub = useDemo.subscribe((s) => {
+    if (s.phase === "loading") return;
+    unsub();
+    idle(() => useGLTF.preload(MODEL, false, true));
+  });
 }

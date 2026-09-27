@@ -151,7 +151,8 @@ Key ideas:
 - **Real materials, honest provenance.** Architecture and joinery are modelled in code from
   the spec; surfaces are CC0 PBR scans at true scale, props are CC0 models, plants are CC0
   scans baked to impostors. Every source and licence is in `ASSET_SOURCES.md`, generated
-  from `scripts/assets/sources.json`. Scenario assets load on first use.
+  from `scripts/assets/sources.json`. What the arrival shot needs loads behind the loader;
+  scenario layers follow after the reveal.
 - **One shader patch** (`three/shared.ts`) adds section cuts, before/after wipes and
   dither fades to standard three.js materials; shadows follow the cut.
 - **Photographer's camera.** Each shot is a position, a subject and a lens. Ground-level
@@ -165,21 +166,28 @@ Key ideas:
 
 ## Performance
 
-Measured production build (gzip):
+Measured on a production build (JavaScript gzipped; assets as served):
 
 | | Size |
 | --- | --- |
-| Initial page JS (React, Next, UI) | ~245 KB |
-| 3D stage (three.js, R3F, camera controls, scene code) — loaded after first paint | ~285 KB |
-| Post-processing (AO, bloom, tone mapping) — **only medium/high tier** | ~100 KB |
-| Photo textures — lazy, per scenario | 20–150 KB each (512 px variants on low tier) |
-| Share image | 93 KB |
+| Initial page JS (React, Next, UI) | 244 KB |
+| 3D stage (three.js, R3F, camera controls, scene code) — loaded after first paint | 325 KB |
+| Post-processing (AO, bloom) — Ultra and Standard tiers only | 102 KB |
+| Assets for the arrival shot, desktop (1024 px textures, plant atlases, skies, kitchen props) | 11.6 MB |
+| Assets for the arrival shot, phones (512 px variants on every tier) | 3.8 MB |
+| After the reveal (HVAC outdoor unit, filmstrip stills) | 0.6 MB |
 
-Quality tiers are guessed from the device and GPU, then adjusted live by a frame-rate
-monitor (resolution first, then ambient occlusion, then a lower tier). The shadow map
-only re-renders when something moves. Low tier: DPR 1.25, no shadows or post-processing,
-half-resolution procedural textures. Without WebGL the demo shows a poster and every
-panel, estimate and the full business flow still work.
+**Loading.** The loader draws the house and reports real progress. It lifts when the arrival
+shot's textures have arrived (at most 10 s after the first frame), so the first thing on screen
+is the finished property, not surfaces filling in; the crane move starts then. Scenario layers
+(HVAC, solar, steel) mount after the reveal, one per idle slot.
+
+**Tiers.** Ultra (`high`), Standard (`medium`) and Mobile (`low`) are guessed from the device and
+GPU, then adjusted live by a frame-rate monitor (resolution first, then ambient occlusion, then
+a lower tier). The shadow map only re-renders when something moves. Mobile tier: DPR 1.25, no
+shadows or post-processing, 512 px textures. Phones get the 512 px textures and plant atlases on
+every tier. Without WebGL the demo shows a poster and every panel, estimate and the full business
+flow still work.
 
 `prefers-reduced-motion` replaces camera flights with cuts, removes idle drift and
 shortens the flow sequence.

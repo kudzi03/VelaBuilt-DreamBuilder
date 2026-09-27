@@ -18,12 +18,13 @@ const ORDER: Layer[] = ["hvac", "solar", "steel"];
  * so the arrival renders fast; a selected industry mounts immediately.
  */
 export function Scenarios() {
-  const sceneReady = useDemo((s) => s.sceneReady);
+  // after the reveal: the arrival's own textures load first
+  const revealed = useDemo((s) => s.sceneReady && s.phase !== "loading");
   const industry = useDemo((s) => s.industry);
   const [on, setOn] = useState<Set<Layer>>(() => new Set());
 
   useEffect(() => {
-    if (!sceneReady) return;
+    if (!revealed) return;
     let i = 0;
     let t: ReturnType<typeof setTimeout>;
     const next = () => {
@@ -34,7 +35,7 @@ export function Scenarios() {
     };
     t = setTimeout(next, 300);
     return () => clearTimeout(t);
-  }, [sceneReady]);
+  }, [revealed]);
 
   // The selected industry's layer mounts immediately, without waiting for its idle slot.
   const selected = industry ? FOR[industry] : null;

@@ -118,7 +118,8 @@ def fbm(h, w, cells, octaves=5, seed=0):
 def save_set(tid, color=None, normal=None, arm=None, meters=(1.0, 1.0), sizes=(1024, 512), note="", srgb_color=True):
     os.makedirs(os.path.join(OUT, tid), exist_ok=True)
     rec = {"meters": [round(meters[0], 4), round(meters[1], 4)], "maps": [], "sizes": list(sizes), "note": note}
-    for name, arr, q in (("color", color, 86), ("normal", normal, 92), ("arm", arm, 88)):
+    # normals at 84: indistinguishable in the render, a third smaller than at 92
+    for name, arr, q in (("color", color, 86), ("normal", normal, 84), ("arm", arm, 88)):
         if arr is None:
             continue
         rec["maps"].append(name)

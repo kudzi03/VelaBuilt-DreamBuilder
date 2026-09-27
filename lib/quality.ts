@@ -27,6 +27,16 @@ export function isTouchDevice() {
   return window.matchMedia?.("(pointer: coarse)").matches || navigator.maxTouchPoints > 1;
 }
 
+/**
+ * Phones get the 512 px texture and plant-atlas variants on every tier: as sharp as the screen
+ * can show, and about a third of the download over a mobile connection.
+ */
+export function textureSizeFor(tier: Tier): 512 | 1024 {
+  if (typeof window === "undefined") return TIERS[tier].textureSize;
+  const phone = isTouchDevice() && Math.min(window.screen.width, window.screen.height) < 600;
+  return phone ? 512 : TIERS[tier].textureSize;
+}
+
 export function webglAvailable(): boolean {
   try {
     const c = document.createElement("canvas");

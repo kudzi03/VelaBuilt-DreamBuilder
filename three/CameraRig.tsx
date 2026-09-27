@@ -378,8 +378,9 @@ export function CameraRig() {
         cam.updateProjectionMatrix();
         lens.current = { from: [f.fov, ...f.shift], to: [f.fov, ...f.shift], cur: [f.fov, ...f.shift], t: 1, dur: 1.6 };
       }
-      const sceneReady = useDemo.getState().sceneReady;
-      if (sceneReady) a.t = Math.min(1, a.t + dt / 7.5);
+      // the crane move starts when the loader lifts
+      const st = useDemo.getState();
+      if (st.sceneReady && st.phase !== "loading") a.t = Math.min(1, a.t + dt / 7.5);
       const k = ease(a.t);
       // descend and settle into the shot, like a slow crane move
       const dir = f.pos.clone().sub(f.look).setY(0).normalize();

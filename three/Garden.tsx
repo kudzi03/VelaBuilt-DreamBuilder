@@ -5,7 +5,7 @@ import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { GARDEN as G, MAIN, WING } from "@/lib/spec";
-import { TIERS } from "@/lib/quality";
+import { textureSizeFor, TIERS } from "@/lib/quality";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty, SKY_GLSL, SKY_UNIFORMS } from "./Atmosphere";
 import { box, merge, rbox, type Placed } from "./geom";
@@ -188,6 +188,7 @@ export function Garden() {
   const phase = useDemo((s) => s.phase);
   const tier = useDemo((s) => s.tier);
   const hi = tier !== "low";
+  const sharp = textureSizeFor(tier) === 1024;
   const beforeOn = compare && industry === "landscaping" && phase === "explore";
   const lights = useRef<THREE.Group>(null);
 
@@ -253,9 +254,9 @@ export function Garden() {
 
   const plants = useMemo(() => {
     const pl = planting();
-    const build = (rec: Record<string, PlantPlacement[]>) => Object.entries(rec).filter(([, l]) => l.length).map(([id, l]) => buildImpostors(id as PlantId, l, hi));
+    const build = (rec: Record<string, PlantPlacement[]>) => Object.entries(rec).filter(([, l]) => l.length).map(([id, l]) => buildImpostors(id as PlantId, l, sharp));
     return { core: build(pl.core), lush: build(pl.lush) };
-  }, [hi]);
+  }, [sharp]);
   const msaa = TIERS[tier].msaa > 0;
   useEffect(() => setCoverage([...plants.core, ...plants.lush], msaa), [plants, msaa]);
   useEffect(
