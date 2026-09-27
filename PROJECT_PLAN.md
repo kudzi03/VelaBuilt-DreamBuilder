@@ -98,6 +98,20 @@ steps down/up at runtime; `?quality=low|medium|high` overrides):
 `prefers-reduced-motion`: camera cuts with short fades, no idle drift, flow steps
 appear without staggered motion.
 
+### Measured (production build)
+
+| | gzip |
+| --- | --- |
+| Initial page JS (React, Next, UI, motion) | ~245 KB — within budget |
+| 3D stage chunk (three.js, R3F, camera controls, scene) | ~285 KB, loaded after first paint |
+| Post-processing chunk | ~100 KB, medium/high tiers only |
+| Share image | 93 KB (WhatsApp limit ~300 KB) |
+
+The combined first-3D-frame download (~530 KB on low tier, ~630 KB on high) is above
+the original 400 KB target; the SSR headline and loader paint first, and three.js
+itself is ~60% of the 3D chunk. Removing drei's HDR environment loaders and splitting
+out post-processing recovered ~140 KB.
+
 ## 5. Assets
 
 All geometry procedural. Photo textures (CC0, Poly Haven) converted to WebP,

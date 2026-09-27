@@ -8,6 +8,7 @@ import { track } from "@/lib/analytics";
 import { COATINGS } from "@/lib/options";
 import { ERECTION_STEPS, SECTIONS, buildFrame, type Member, type SectionId } from "@/lib/steel";
 import { useDemo } from "@/lib/store";
+import { detectUnits } from "@/lib/units";
 import { markShadowsDirty } from "./Atmosphere";
 import { channels } from "./shared";
 
@@ -266,7 +267,7 @@ export function Steel() {
       {sel && selMid && industry === "steel" && (
         <Html position={selMid} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
           <div className="tag3d">
-            {sel.id} · {SECTIONS[sel.section].metric.name}
+            {sel.id} · {detectUnits() === "imperial" ? SECTIONS[sel.section].us.name : SECTIONS[sel.section].metric.name}
           </div>
         </Html>
       )}

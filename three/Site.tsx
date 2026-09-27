@@ -192,7 +192,7 @@ export function Site() {
       pavers: new THREE.MeshStandardMaterial({ map: pv.map, normalMap: pv.normalMap, roughness: 0.9 }),
       drive: new THREE.MeshStandardMaterial({ map: dr.map, normalMap: dr.normalMap, roughness: 0.92 }),
       kerb: new THREE.MeshStandardMaterial({ color: "#cbc5ba", roughness: 0.9 }),
-      hedge: new THREE.MeshStandardMaterial({ map: hedgeTex.map, color: "#9aa782", roughness: 1 }),
+      hedge: new THREE.MeshStandardMaterial({ map: hedgeTex.map, color: "#b9c29f", roughness: 1 }),
       canopy: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96 }),
       trunk: new THREE.MeshStandardMaterial({ color: "#5d4c3f", roughness: 0.95 }),
       ao: new THREE.MeshBasicMaterial({ map: geo.aoTex, transparent: true, opacity: 0.5, depthWrite: false }),

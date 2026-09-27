@@ -19,7 +19,7 @@ export interface Shot {
 }
 
 export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal", Shot> = {
-  hero: { target: [0.3, 3.2, -4.6], azimuth: 0.66, polar: 1.3, radius: 12.2, orbit: 0.9 },
+  hero: { target: [0.6, 3.2, -4.2], azimuth: 0.66, polar: 1.3, radius: 10.9, orbit: 0.9 },
   roofing: { target: [0.2, 6.3, -2.8], azimuth: 0.4, polar: 1.02, radius: 10.2 },
   solar: { target: [0.4, 6.3, 1.4], azimuth: 0.36, polar: 1.0, radius: 8.4 },
   remodeling: { target: [2.7, 1.05, -10.2], azimuth: -1.4, polar: 0.84, radius: 5.4 },
