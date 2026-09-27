@@ -11,3 +11,7 @@ npm-debug.log*
 .DS_Store
 /qa/
 /test-results/
+
+# intermediate renders (final outputs live in public/)
+scripts/og/*.png
+scripts/og/og.html

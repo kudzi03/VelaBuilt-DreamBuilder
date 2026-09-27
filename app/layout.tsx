@@ -101,7 +101,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {children}
-        <Analytics />
+        {/* Vercel Web Analytics only exists on Vercel deployments (enable it in the project's Analytics tab). */}
+        {process.env.VERCEL === "1" && <Analytics />}
       </body>
     </html>
   );

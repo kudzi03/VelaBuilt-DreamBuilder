@@ -123,7 +123,8 @@ short enumerated properties.
 
 1. Import the repository in Vercel (framework preset: Next.js, no overrides needed).
 2. Add the environment variables you want (at minimum `NEXT_PUBLIC_WHATSAPP_NUMBER`
-   and one lead-delivery channel).
+   and one lead-delivery channel), and enable **Web Analytics** in the project's
+   Analytics tab (the script is only included on Vercel builds).
 3. Point a domain (e.g. `demo.velabuilt.com`) and set `NEXT_PUBLIC_SITE_URL` to it.
 4. Share the link. Check the preview with WhatsApp or https://www.opengraph.xyz.
 

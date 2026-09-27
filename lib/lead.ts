@@ -59,6 +59,8 @@ export function buildLead(id: IndustryId, s: DemoState, units: UnitSystem): Lead
   const name = (s.qualification.name || sampleName()).trim();
   const first = name.split(" ")[0];
   const company = s.company || ind.placeholder;
+  // "it's Acme Co." — never "Acme Co.." when the name already ends in a full stop
+  const signed = `${company.replace(/\.+$/, "")}.`;
   const q = s.qualification;
   const rangeText = est.low === est.high ? (est.low === 0 ? "free" : range(est.low, est.high).split(" – ")[0]) : range(est.low, est.high);
 
@@ -108,7 +110,7 @@ export function buildLead(id: IndustryId, s: DemoState, units: UnitSystem): Lead
       const m = ROOF_MATERIAL_BY_ID[s.roofing.material];
       const col = m.colors.find((c) => c.id === s.roofing.color)?.label ?? "";
       const n = s.roofing.flags.length;
-      message = `Hi ${first}, it's ${company}. Thanks for choosing your new roof on our site — ${m.label.toLowerCase()} in ${col.toLowerCase()}, estimated at ${rangeText}.${n ? ` We've noted the ${n} area${n > 1 ? "s" : ""} you marked.` : ""} When can we come by for the free inspection?`;
+      message = `Hi ${first}, it's ${signed} Thanks for choosing your new roof on our site — ${m.label.toLowerCase()} in ${col.toLowerCase()}, estimated at ${rangeText}.${n ? ` We've noted the ${n} area${n > 1 ? "s" : ""} you marked.` : ""} When can we come by for the free inspection?`;
       job = `Roof replacement · ${m.label}, ${col} · ${roofSquares(ROOF_AREA_M2).toFixed(1)} squares · materials list ready`;
       break;
     }
@@ -116,7 +118,7 @@ export function buildLead(id: IndustryId, s: DemoState, units: UnitSystem): Lead
       const cab = CABINETS.find((x) => x.id === s.remodeling.cabinets)!;
       const top = COUNTERS.find((x) => x.id === s.remodeling.counter)!;
       const fl = FLOORS.find((x) => x.id === s.remodeling.floor)!;
-      message = `Hi ${first}, it's ${company}. Love the kitchen you designed — ${cab.label.toLowerCase()} ${cab.detail?.toLowerCase()} cabinets with ${top.label.toLowerCase()}, around ${rangeText}. Want to walk through it together at home?`;
+      message = `Hi ${first}, it's ${signed} Love the kitchen you designed — ${cab.label.toLowerCase()} ${cab.detail?.toLowerCase()} cabinets with ${top.label.toLowerCase()}, around ${rangeText}. Want to walk through it together at home?`;
       job = `Kitchen remodel · order list drafted: ${cab.label} ${cab.detail}, ${top.label}, ${fl.label}`;
       break;
     }
@@ -128,21 +130,21 @@ export function buildLead(id: IndustryId, s: DemoState, units: UnitSystem): Lead
     }
     case "solar": {
       const kw = ((s.solar.panels * PANEL.watts) / 1000).toFixed(1);
-      message = `Hi ${first}, it's ${company}. Thanks for designing your ${kw} kW system — ${s.solar.panels} panels${s.solar.battery ? ` and ${s.solar.battery} batter${s.solar.battery > 1 ? "ies" : "y"}` : ""}, estimated at ${rangeText}. Next step is a quick site survey. When works?`;
+      message = `Hi ${first}, it's ${signed} Thanks for designing your ${kw} kW system — ${s.solar.panels} panels${s.solar.battery ? ` and ${s.solar.battery} batter${s.solar.battery > 1 ? "ies" : "y"}` : ""}, estimated at ${rangeText}. Next step is a quick site survey. When works?`;
       job = `Solar installation · ${s.solar.panels} × ${PANEL.watts} W${s.solar.battery ? ` + ${s.solar.battery} battery` : ""} · permit pack started`;
       break;
     }
     case "landscaping": {
       const f = [s.landscaping.pool && "pool", s.landscaping.pergola && "pergola", s.landscaping.evening && "lighting"].filter(Boolean).join(", ");
-      message = `Hi ${first}, it's ${company}. Your garden plan looks great${f ? ` — ${f}` : ""}, estimated at ${rangeText}. Can we walk the space with you and refine it?`;
+      message = `Hi ${first}, it's ${signed} Your garden plan looks great${f ? ` — ${f}` : ""}, estimated at ${rangeText}. Can we walk the space with you and refine it?`;
       job = `Outdoor living build · ${f || "terrace and planting"} · planting plan ready`;
       break;
     }
     case "hvac": {
       const iss = HVAC_ISSUE_BY_ID[s.hvac.issue];
       message = s.hvac.slot
-        ? `Hi ${first}, it's ${company}. You're booked for ${formatSlot(s.hvac.slot)} — "${iss.label.toLowerCase()}". Your technician will text when they're on the way.`
-        : `Hi ${first}, it's ${company}. We've got your request — "${iss.label.toLowerCase()}". Pick a time and we'll send a technician.`;
+        ? `Hi ${first}, it's ${signed} You're booked for ${formatSlot(s.hvac.slot)} — "${iss.label.toLowerCase()}". Your technician will text when they're on the way.`
+        : `Hi ${first}, it's ${signed} We've got your request — "${iss.label.toLowerCase()}". Pick a time and we'll send a technician.`;
       job = `Service call · ${iss.label} · technician assigned, parts checklist attached`;
       break;
     }
