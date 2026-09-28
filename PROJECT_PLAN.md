@@ -171,6 +171,6 @@ Rules that came out of the QA passes (worth keeping):
 - Don't edit source files while a QA render is running: hot reload restarts the page.
 - Check every camera move against the scene, not just the shots: a damped orbit round a moving
   target happily flies through the house. The planner's volumes are the spec; the QA probe raycasts
-  the planned path against the real meshes and tree crowns.
+  the planned path against the real meshes and tree crowns (`scripts/qa-camera-paths.mjs`).
 - Measure UI insets where panels come to rest, not mid-entry-animation, or the shot re-frames
   (and the camera re-plans) several times while the panel slides in.

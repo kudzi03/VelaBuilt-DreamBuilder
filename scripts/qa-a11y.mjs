@@ -7,8 +7,10 @@ const axePath = require.resolve("axe-core/axe.min.js");
 const base = process.env.BASE || "http://localhost:3000";
 const browser = await pw.chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
-await page.goto(base + "/?quality=low&motion=reduced", { waitUntil: "domcontentloaded" });
-await page.waitForTimeout(11000);
+await page.goto(base + "/?quality=low&motion=reduced&debug", { waitUntil: "domcontentloaded", timeout: 180000 });
+// the loader lifts once the arrival shot's textures are in
+await page.waitForFunction(() => window.__store?.getState().phase === "intro", null, { timeout: 400000, polling: 500 });
+await page.waitForTimeout(1500);
 const audit = async (label) => {
   await page.addScriptTag({ path: axePath });
   const res = await page.evaluate(async () => {
@@ -19,7 +21,7 @@ const audit = async (label) => {
   for (const v of res) console.log(` - [${v.impact}] ${v.id} (${v.n}) ${v.help} :: ${v.target.join(" | ")}`);
 };
 await audit("intro");
-await page.click(".card:has-text('Roofing')");
+await page.click(".tile:has-text('Roofing')");
 await page.waitForTimeout(3500);
 await audit("explore/roofing");
 await page.click(".panel__foot .btn--primary");

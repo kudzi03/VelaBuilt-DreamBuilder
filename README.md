@@ -135,7 +135,7 @@ app/            layout (fonts, metadata, JSON-LD), page, API routes, robots/site
 components/     DOM UI — top bar, intro, panels, before/after handle, flow, reveal, forms
 lib/            spec (the house), steel frame, options + sample pricing, estimates,
                 lead builder/scoring, store (zustand), analytics, quality tiers, units
-three/          the 3D scene — stage, atmosphere (sky, IBL, sun, fog), camera rig, house,
+three/          the 3D scene — stage, atmosphere (sky, IBL, sun, fog), camera rig and flight planner, house,
                 roof, kitchen, garden, landscape, solar, steel, hvac, materials,
                 impostors, lamps, interior probe, shader patch
 public/assets/  CC0 skies, texture sets, props (GLB) and plant atlases, built by scripts/assets
@@ -200,6 +200,7 @@ With the dev server running:
 node scripts/shot.mjs "/?quality=medium&motion=reduced" out.png 390 844 15000   # any viewport
 node scripts/qa-interactions.mjs ./qa     # roof marking, compare, lighting, steel, enquiry
 node scripts/qa-a11y.mjs                  # axe-core across intro → explore → flow → reveal → form
+node scripts/qa-camera-paths.mjs          # every shot-to-shot camera move vs walls and tree crowns
 node scripts/og/render.mjs                # re-render the share image from the live scene
 node scripts/og/poster.mjs                # re-render the no-WebGL poster
 node scripts/og/previews.mjs              # re-render the industry stills on the intro
