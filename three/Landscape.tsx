@@ -3,7 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { GARDEN, MAIN, WING } from "@/lib/spec";
+import { BALCONY, GARDEN, MAIN, WING } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { SUN_DIR } from "./env";
 import { box, merge, type Placed } from "./geom";
@@ -130,11 +130,12 @@ function placeTrees(): Record<string, PlantPlacement[]> {
   const out: Record<string, PlantPlacement[]> = { jacaranda: [], fir_a: [], fir_b: [], fir_c: [], island: [], searsia_a: [], searsia_b: [], searsia_c: [], searsia_d: [], shrub_a: [], shrub_d: [] };
   // specimen broadleaf trees framing the house
   // (kept off the drone sightlines: roofing, solar and steel look in from the street-side corner)
-  out.jacaranda.push({ x: -21, z: 16, height: 10.5 }, { x: 25, z: 1.5, height: 12 }, { x: -21, z: -5, height: 11.5 }, { x: 4.2, z: -24.5, height: 12.5 }, { x: -2.5, z: 22.5, height: 9.5 });
+  out.jacaranda.push({ x: -21, z: 16, height: 10.5 }, { x: 25, z: 1.5, height: 12 }, { x: -21, z: -5, height: 11.5 }, { x: -2.5, z: 22.5, height: 9.5 });
   // woodland edge behind the garden and along the east side
   const edge: Array<[number, number]> = [];
   for (let i = 0; i < 26; i++) edge.push([-30 + i * 2.6 + J(1.8), -27 - Math.abs(Math.sin(i * 1.7)) * 5 + J(3)]);
-  for (let i = 0; i < 14; i++) edge.push([22 + J(3) + Math.sin(i) * 2, -22 + i * 3.1 + J(1.5)]);
+  // the east side stays open: the arrival shot sees the house against the sky, and the drone
+  // shots from the street corner are not taken through branches
   for (let i = 0; i < 12; i++) edge.push([-31 + J(3), -20 + i * 3.3 + J(1.5)]);
   edge.forEach(([x, z], i) => {
     const k = i % 3;
@@ -168,6 +169,8 @@ function placeForest(count: number) {
   for (let i = 0; i < count; i++) {
     const a = r() * Math.PI * 2;
     const d = 55 + Math.pow(r(), 0.7) * 110;
+    // the view past the house from the garden (north-east) stays open to the horizon
+    if (a > 0.2 && a < 1.35) continue;
     // keep the long view over the garden toward the sunset partly open
     const x = Math.cos(a) * d;
     const z = Math.sin(a) * d;
@@ -220,6 +223,8 @@ export function Landscape() {
     const pavers: Placed[] = [];
     for (let z = MAIN.z1 + 1.4; z < LOT.z1 + 6; z += 0.95) pavers.push({ geo: box(1.5, 0.05, 0.62), pos: [0, 0.025, z] });
     pavers.push({ geo: box(2.6, 0.06, 1.4), pos: [0, 0.03, MAIN.z1 + 0.7] });
+    // covered terrace under the west balcony
+    pavers.push({ geo: box(MAIN.x0 - BALCONY.x0 + 0.3, 0.05, MAIN.z1 - MAIN.z0 + 0.45), pos: [(BALCONY.x0 - 0.3 + MAIN.x0) / 2, 0.025, (MAIN.z0 + MAIN.z1) / 2 + 0.225] });
     // service path along the kitchen wing
     for (let z = WING.z0 + 0.6; z < MAIN.z0 - 0.2; z += 0.95) pavers.push({ geo: box(1.1, 0.05, 0.62), pos: [WING.x1 + 1.3, 0.025, z] });
     // gravel margin round the house with a steel edge
@@ -227,7 +232,6 @@ export function Landscape() {
     const gravel: Placed[] = [
       { geo: box(MAIN.x1 - MAIN.x0 + m * 2, 0.03, m), pos: [(MAIN.x0 + MAIN.x1) / 2, 0.015, MAIN.z1 + m / 2] },
       { geo: box(m, 0.03, MAIN.z1 - MAIN.z0), pos: [MAIN.x1 + m / 2, 0.015, (MAIN.z0 + MAIN.z1) / 2] },
-      { geo: box(m, 0.03, MAIN.z1 - MAIN.z0 + m), pos: [MAIN.x0 - m / 2, 0.015, (MAIN.z0 + MAIN.z1) / 2 + m / 2] },
       { geo: box(m, 0.03, WING.z1 - WING.z0 + m), pos: [WING.x1 + m / 2, 0.015, (WING.z0 + WING.z1) / 2 - m / 2] },
       { geo: box(WING.x1 - WING.x0 + m, 0.03, m), pos: [(WING.x0 + WING.x1) / 2 + m / 2, 0.015, WING.z0 - m / 2] },
     ];

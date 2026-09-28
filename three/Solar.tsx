@@ -3,25 +3,46 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { MAIN, PANEL, PANEL_SLOTS, ROOF_PLANE_BY_ID, planePoint } from "@/lib/spec";
+import { MAIN, MAIN_TOP, PANEL, PANEL_SLOTS, ROOF_PLANE_BY_ID, planePoint } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty } from "./Atmosphere";
 import { box, merge, planeMatrix, rbox } from "./geom";
 import { solarCells } from "./proc";
-import { ROOF_T } from "./Roof";
 import { channels } from "./shared";
 
 const N = PANEL_SLOTS.length;
-const LIFT = ROOF_T + 0.11;
+const TILT = (PANEL.tiltDeg * Math.PI) / 180;
+/** landscape on the rack: the long side runs along the row */
+const PW = PANEL.h;
+const PH = PANEL.w;
+/** panel centre above the roof: the low edge clears the membrane by 16 cm */
+const LIFT = 0.16 + (PH / 2) * Math.sin(TILT);
+const TILT_M = new THREE.Matrix4().makeRotationX(TILT);
 const ease = (x: number) => 1 - Math.pow(1 - x, 3);
 
-/** Anodised frame, and the two mounting rails the panel is clamped to (they read continuous along a row). */
+/** A rack leg: vertical in the world once the panel is tilted, from the panel's underside to the roof. */
+function leg(x: number, zl: number): THREE.BufferGeometry {
+  const ay = -0.03 * Math.cos(TILT) - zl * Math.sin(TILT);
+  const az = -0.03 * Math.sin(TILT) + zl * Math.cos(TILT);
+  const len = ay + LIFT;
+  const g = box(0.04, len, 0.04);
+  g.translate(x, ay - len / 2, az);
+  const foot = box(0.12, 0.03, 0.2);
+  foot.translate(x, -LIFT + 0.015, az);
+  const both = merge([{ geo: g }, { geo: foot }]);
+  both.applyMatrix4(new THREE.Matrix4().makeRotationX(-TILT));
+  return both;
+}
+
+/** Anodised frame, the two mounting rails the panel is clamped to (they read continuous along a row), and the rack's legs. */
 function panelFrame(): THREE.BufferGeometry {
-  const w = PANEL.w;
-  const h = PANEL.h;
+  const w = PW;
+  const h = PH;
   const t = 0.035;
   const d = 0.04;
+  const legs = [-1, 1].flatMap((sx) => [leg(sx * (w / 2 - 0.2), h / 2 - 0.08), leg(sx * (w / 2 - 0.2), -h / 2 + 0.08)]);
   return merge([
+    ...legs.map((geo) => ({ geo })),
     { geo: rbox(w, d, t, 0.004), pos: [0, 0, h / 2 - t / 2] },
     { geo: rbox(w, d, t, 0.004), pos: [0, 0, -h / 2 + t / 2] },
     { geo: rbox(t, d, h - 2 * t, 0.004), pos: [w / 2 - t / 2, 0, 0] },
@@ -35,8 +56,10 @@ function panelFrame(): THREE.BufferGeometry {
 }
 
 function panelCells(): THREE.BufferGeometry {
+  // the cell picture is portrait: turn it with the panel
   const g = new THREE.PlaneGeometry(PANEL.w - 0.06, PANEL.h - 0.06);
   g.rotateX(-Math.PI / 2);
+  g.rotateY(Math.PI / 2);
   g.translate(0, 0.012, 0);
   return g;
 }
@@ -54,8 +77,8 @@ export function Solar() {
   const geo = useMemo(() => ({ frame: panelFrame(), cells: panelCells() }), []);
   const batteryGeo = useMemo(() => rbox(0.2, 1.1, 0.62, 0.03, 2), []);
   useEffect(() => () => batteryGeo.dispose(), [batteryGeo]);
-  const base = useMemo(() => PANEL_SLOTS.map((s) => planeMatrix(ROOF_PLANE_BY_ID[s.plane], s.u, s.v, LIFT)), []);
-  const normal = useMemo(() => new THREE.Vector3(...ROOF_PLANE_BY_ID["main-front"].normal), []);
+  const base = useMemo(() => PANEL_SLOTS.map((s) => planeMatrix(ROOF_PLANE_BY_ID[s.plane], s.u, s.v, LIFT).multiply(TILT_M)), []);
+  const normal = useMemo(() => new THREE.Vector3(...ROOF_PLANE_BY_ID["main-roof"].normal), []);
 
   const mats = useMemo(
     () => ({
@@ -80,9 +103,9 @@ export function Solar() {
   }, [finish, mats]);
 
   const outline = useMemo(() => {
-    const p = ROOF_PLANE_BY_ID["main-front"];
+    const p = ROOF_PLANE_BY_ID["main-roof"];
     const [u0, u1, v0, v1] = p.usable;
-    const pts = [planePoint(p, u0, v0, LIFT - 0.06), planePoint(p, u1, v0, LIFT - 0.06), planePoint(p, u1, v1, LIFT - 0.06), planePoint(p, u0, v1, LIFT - 0.06), planePoint(p, u0, v0, LIFT - 0.06)];
+    const pts = [planePoint(p, u0, v0, 0.03), planePoint(p, u1, v0, 0.03), planePoint(p, u1, v1, 0.03), planePoint(p, u0, v1, 0.03), planePoint(p, u0, v0, 0.03)];
     const g = new THREE.BufferGeometry().setFromPoints(pts.map((x) => new THREE.Vector3(...x)));
     return new THREE.Line(g, mats.outline);
   }, [mats]);
@@ -140,7 +163,7 @@ export function Solar() {
     if (batteries.current) batteries.current.visible = vis > 0.3;
   });
 
-  // Battery wall on the shaded gable, with a conduit up to the roof.
+  // Battery wall on the shaded east wall, with a conduit up to the roof.
   const bx = MAIN.x1 + 0.11;
   return (
     <group ref={group} name="solar" visible={false}>
@@ -159,8 +182,8 @@ export function Solar() {
         <mesh material={mats.battery} position={[bx, 1.45, -3.35]} castShadow>
           <boxGeometry args={[0.16, 0.56, 0.42]} />
         </mesh>
-        <mesh material={mats.conduit} position={[bx - 0.05, (1.75 + MAIN.eave) / 2, -3.35]}>
-          <boxGeometry args={[0.05, MAIN.eave - 1.75, 0.05]} />
+        <mesh material={mats.conduit} position={[bx - 0.05, (1.75 + MAIN_TOP) / 2, -3.35]}>
+          <boxGeometry args={[0.05, MAIN_TOP - 1.75, 0.05]} />
         </mesh>
       </group>
     </group>

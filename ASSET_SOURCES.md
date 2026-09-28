@@ -22,16 +22,15 @@ photograph and re-added as a light; stored as linear radiance in WebP).
 ## Surface textures
 
 Built by `scripts/assets/build_textures.py` into `public/assets/tex/<id>/{color,normal,arm}_<px>.webp`
-at true scale (each set records the metres it covers). Composites — pavers, large-format
-porcelain, shingles — are cut from these scans; the slate veneer of the stone base is graded from
-Castle Wall Slates; the black granite is graded from a pale one.
+at true scale (each set records the metres it covers). Composites — limestone cladding and pavers,
+large-format porcelain — are cut from these scans; the roof membrane is composed on a generated
+base; the black granite is graded from a pale one.
 
 ### Poly Haven
 
 | Asset | Used for | Creator | Source | Licence |
 | --- | --- | --- | --- | --- |
 | Japanese Cedar Planks | Cedar cladding and soffits | Charlotte Baglioni, Rico Cilliers | https://polyhaven.com/a/japanese_cedar_planks | CC0 1.0 |
-| Roof Slates 02 | Roofing: natural slate | Rob Tuytel | https://polyhaven.com/a/roof_slates_02 | CC0 1.0 |
 | Wood Floor | Floors: wide-plank oak (kitchen option, house interiors) | Dimitrios Savva | https://polyhaven.com/a/wood_floor | CC0 1.0 |
 | Herringbone Parquet | Kitchen floor option: herringbone oak | Jenelle van Heerden, Sergej Majboroda | https://polyhaven.com/a/herringbone_parquet | CC0 1.0 |
 | American Walnut Veneer | Kitchen fronts: walnut; interior joinery | Jenelle van Heerden | https://polyhaven.com/a/american_walnut_veneer | CC0 1.0 |
@@ -41,24 +40,21 @@ Castle Wall Slates; the black granite is graded from a pale one.
 | Wood Floor Deck | Garden option: hardwood deck | Dimitrios Savva | https://polyhaven.com/a/wood_floor_deck | CC0 1.0 |
 | Rough Linen | Upholstery and cushions | colormass, Rico Cilliers | https://polyhaven.com/a/rough_linen | CC0 1.0 |
 | Concrete Floor 02 | Concrete: steel footings, before-garden slab | Rob Tuytel | https://polyhaven.com/a/concrete_floor_02 | CC0 1.0 |
-| Castle Wall Slates | Stone base: coursed slate veneer (house plinth walls, kitchen-wing piers) | Rob Tuytel | https://polyhaven.com/a/castle_wall_slates | CC0 1.0 |
 | Mud Forest | Planting beds: dark mulched soil | eye-candy.xyz | https://polyhaven.com/a/mud_forest | CC0 1.0 |
 
 ### ambientCG
 
 | Asset | Used for | Creator | Source | Licence |
 | --- | --- | --- | --- | --- |
-| Travertine009 | Terrace pavers and pool coping | Lennart Demes (ambientCG) | https://ambientcg.com/a/Travertine009 | CC0 1.0 |
+| Travertine009 | Limestone cladding, terrace pavers, pool coping | Lennart Demes (ambientCG) | https://ambientcg.com/a/Travertine009 | CC0 1.0 |
 | Concrete034 | Polished concrete worktop, floor and splash | Lennart Demes (ambientCG) | https://ambientcg.com/a/Concrete034 | CC0 1.0 |
 | Grass001 | Lawn | Lennart Demes (ambientCG) | https://ambientcg.com/a/Grass001 | CC0 1.0 |
 | Grass004 | Meadow beyond the lot | Lennart Demes (ambientCG) | https://ambientcg.com/a/Grass004 | CC0 1.0 |
 | Gravel022 | Gravel drive, margins and paths | Lennart Demes (ambientCG) | https://ambientcg.com/a/Gravel022 | CC0 1.0 |
-| RoofingTiles012A | Roofing: concrete tile (greyscale, tinted per colour) | Lennart Demes (ambientCG) | https://ambientcg.com/a/RoofingTiles012A | CC0 1.0 |
 | Tiles107 | Pool lining; "before" kitchen tile splash | Lennart Demes (ambientCG) | https://ambientcg.com/a/Tiles107 | CC0 1.0 |
 | Plaster001 | Interior plaster; lime-plaster splash | Lennart Demes (ambientCG) | https://ambientcg.com/a/Plaster001 | CC0 1.0 |
 | Metal032 | Brushed and galvanised steel: sink, steel frame | Lennart Demes (ambientCG) | https://ambientcg.com/a/Metal032 | CC0 1.0 |
 | Fabric061 | Rugs and bouclé upholstery | Lennart Demes (ambientCG) | https://ambientcg.com/a/Fabric061 | CC0 1.0 |
-| Asphalt026C | Granule grain of the architectural and weathered shingles | Lennart Demes (ambientCG) | https://ambientcg.com/a/Asphalt026C | CC0 1.0 |
 | Leather037 | Counter-stool seats | Lennart Demes (ambientCG) | https://ambientcg.com/a/Leather037 | CC0 1.0 |
 | Marble019 | Worktop and slab backsplash: Calacatta | Lennart Demes (ambientCG) | https://ambientcg.com/a/Marble019 | CC0 1.0 |
 | Granite002A | Worktop: black granite (graded); "before" speckled granite | Lennart Demes (ambientCG) | https://ambientcg.com/a/Granite002A | CC0 1.0 |
@@ -126,7 +122,7 @@ Loaded with `next/font/google` and self-hosted at build time.
 | Asset | How |
 | --- | --- |
 | Architecture, kitchen joinery, steel frame and connections, ducts, garden furniture | Modelled in code from the single spec in `lib/spec.ts` and `lib/steel.ts` |
-| Pavers, porcelain, shingles (new and weathered), standing-seam pan | Composited from the scans above, `scripts/assets/build_textures.py` |
+| Limestone cladding, pavers, porcelain, single-ply roof membrane, standing-seam pan | Composited from the scans above (the membrane from generated noise), `scripts/assets/build_textures.py` |
 | Leaf and sprig cards, bark LODs | Derived from the tree scans above, `scripts/assets/build_trees.py` and `.mjs` |
 | Solar cell pattern | Generated on the device, `three/proc.ts` |
 | Industry tile stills `public/previews/*.webp` | Rendered from the live scene, `scripts/og/previews.mjs` |

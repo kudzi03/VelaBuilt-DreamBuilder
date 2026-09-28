@@ -226,6 +226,39 @@ void main() {
   // below the horizon the dome continues the ground plane, which is fully fogged at its edge
   if (elev < 0.0) col = mix(uFog, uGround, smoothstep(-2.0, -12.0, elev));
 
+  // a town in the distance past the house (north-east): after sunset its lights come on across
+  // the far hills and a few towers stand in the haze. Only in that sector, only at dusk.
+  float town = smoothstep(3.22, 3.4, az) * (1.0 - smoothstep(4.45, 4.62, az)) * smoothstep(0.35, 0.8, uMix);
+  if (town > 0.0) {
+    // towers: flat-topped blocks with a scatter of lit windows
+    for (int i = 0; i < 9; i++) {
+      float fi = float(i);
+      float c = 3.55 + h1(fi * 7.1 + 3.0) * 0.72;
+      float w = 0.0045 + h1(fi * 3.7 + 1.0) * 0.007;
+      float top = 0.9 + pow(h1(fi * 5.3 + 2.0), 2.0) * 2.4;
+      if (abs(az - c) < w && elev < top && elev > -0.3) {
+        vec3 block = mix(land, horizon, 0.55) * 0.85;
+        vec2 cell = vec2((az - c) * 1400.0, elev * 9.0);
+        float lit = step(0.62, h1(floor(cell.x) * 13.1 + floor(cell.y) * 71.7 + fi * 5.0));
+        float pane = step(0.25, fract(cell.x)) * step(0.3, fract(cell.y));
+        block += vec3(1.0, 0.78, 0.5) * lit * pane * 0.9 * town;
+        col = mix(col, block, town);
+      }
+    }
+    // lights scattered over the hills: warm streets, a few cool ones
+    if (elev < hills + 0.15 && elev > -0.5) {
+      vec2 g = vec2(az * 760.0, elev * 13.0);
+      vec2 cell = floor(g);
+      float r = h1(cell.x * 12.9898 + cell.y * 78.233);
+      float cluster = smoothstep(0.35, 0.75, noise1(az * 60.0) * 0.6 + noise1(az * 11.0 + 4.0) * 0.4);
+      vec2 f = fract(g) - 0.5 - (vec2(h1(r * 91.0), h1(r * 57.0)) - 0.5) * 0.5;
+      float dotv = smoothstep(0.26, 0.05, length(f * vec2(1.0, 0.55)));
+      float on = step(1.0 - 0.45 * cluster, r);
+      vec3 lc = mix(vec3(1.0, 0.72, 0.42), vec3(0.85, 0.9, 1.0), step(0.8, h1(r * 33.0)));
+      col += lc * dotv * on * (0.6 + 0.8 * h1(r * 7.0)) * town * 0.9;
+    }
+  }
+
   gl_FragColor = vec4(col, 1.0);
   ${OUTPUT_TAIL}
 }

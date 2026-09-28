@@ -109,28 +109,6 @@
   ],
   "bytes": 340214
  },
- "clad_stone": {
-  "meters": [
-   2.5,
-   2.5
-  ],
-  "maps": [
-   "color",
-   "normal",
-   "arm"
-  ],
-  "sizes": [
-   1024,
-   512
-  ],
-  "note": "coursed slate veneer",
-  "mean": [
-   0.3089,
-   0.2573,
-   0.1832
-  ],
-  "bytes": 1379682
- },
  "concrete": {
   "meters": [
    2.0,
@@ -285,6 +263,28 @@
   ],
   "bytes": 159734
  },
+ "limestone": {
+  "meters": [
+   2.4,
+   1.2
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "limestone cladding, 1200x600 panels",
+  "mean": [
+   0.7404,
+   0.5989,
+   0.4104
+  ],
+  "bytes": 88680
+ },
  "linen": {
   "meters": [
    0.27,
@@ -328,6 +328,28 @@
    0.0353
   ],
   "bytes": 1805852
+ },
+ "membrane": {
+  "meters": [
+   3.0,
+   3.0
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   1024,
+   512
+  ],
+  "note": "single-ply membrane, greyscale: tint with material.color",
+  "mean": [
+   0.3482,
+   0.3482,
+   0.3482
+  ],
+  "bytes": 20050
  },
  "mulch": {
   "meters": [
@@ -526,94 +548,6 @@
    0.3464
   ],
   "bytes": 3464
- },
- "shingle": {
-  "meters": [
-   3.0,
-   3.0
-  ],
-  "maps": [
-   "color",
-   "normal",
-   "arm"
-  ],
-  "sizes": [
-   1024,
-   512
-  ],
-  "note": "architectural shingles, greyscale, tint with material.color",
-  "mean": [
-   0.257,
-   0.257,
-   0.257
-  ],
-  "bytes": 1070304
- },
- "shingle_worn": {
-  "meters": [
-   3.0,
-   3.0
-  ],
-  "maps": [
-   "color",
-   "normal",
-   "arm"
-  ],
-  "sizes": [
-   1024,
-   512
-  ],
-  "note": "weathered architectural shingles (before)",
-  "mean": [
-   0.3062,
-   0.2943,
-   0.2575
-  ],
-  "bytes": 1046082
- },
- "slate": {
-  "meters": [
-   3.0,
-   3.0
-  ],
-  "maps": [
-   "color",
-   "normal",
-   "arm"
-  ],
-  "sizes": [
-   1024,
-   512
-  ],
-  "note": "greyscale, tint with material.color",
-  "mean": [
-   0.3501,
-   0.3501,
-   0.3501
-  ],
-  "bytes": 957196
- },
- "tile_roof": {
-  "meters": [
-   2.9,
-   2.9
-  ],
-  "maps": [
-   "color",
-   "normal",
-   "arm"
-  ],
-  "sizes": [
-   1024,
-   512
-  ],
-  "note": "greyscale, tint with material.color",
-  "mean": [
-   0.3496,
-   0.3496,
-   0.3496
-  ],
-  "bytes": 336852
  },
  "walnut": {
   "meters": [

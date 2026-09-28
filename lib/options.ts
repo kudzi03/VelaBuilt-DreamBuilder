@@ -51,7 +51,7 @@ export const REMODEL_BASE: [number, number] = [14000, 18500];
 
 /* ------------------------------------------------------------------ roofing */
 
-export type RoofMaterialId = "shingle" | "metal" | "tile" | "slate";
+export type RoofMaterialId = "membrane" | "metal" | "green" | "ballast";
 
 export interface RoofColor {
   id: string;
@@ -65,63 +65,61 @@ export interface RoofMaterial extends Choice<RoofMaterialId> {
   life: string;
 }
 
+/** Flat and low-slope systems (the house has two flat roofs). */
 export const ROOF_MATERIALS: RoofMaterial[] = [
   {
-    id: "shingle",
-    label: "Architectural shingle",
-    life: "25–30 yr warranty (typical)",
-    perSquare: [430, 570],
+    id: "membrane",
+    label: "Single-ply membrane",
+    life: "20–30 yr warranty (typical)",
+    perSquare: [560, 820],
     colors: [
-      { id: "charcoal", label: "Charcoal", hex: "#3c3d40" },
-      { id: "weathered", label: "Weathered wood", hex: "#6c6053" },
-      { id: "slate-grey", label: "Slate grey", hex: "#5e656a" },
-      { id: "desert-tan", label: "Desert tan", hex: "#978266" },
+      { id: "white", label: "Reflective white", hex: "#dedcd6" },
+      { id: "light-grey", label: "Light grey", hex: "#a9aaa8" },
+      { id: "charcoal", label: "Charcoal (EPDM)", hex: "#2f3032" },
     ],
   },
   {
     id: "metal",
     label: "Standing-seam metal",
     life: "40+ yr service life (typical)",
-    perSquare: [980, 1350],
+    perSquare: [1050, 1480],
     colors: [
       { id: "matte-black", label: "Matte black", hex: "#1c1d20" },
       { id: "galvalume", label: "Galvalume", hex: "#a3a8ac" },
-      { id: "forest", label: "Forest green", hex: "#33503f" },
       { id: "bronze", label: "Dark bronze", hex: "#56432f" },
     ],
   },
   {
-    id: "tile",
-    label: "Concrete tile",
-    life: "50 yr service life (typical)",
-    perSquare: [860, 1180],
+    id: "green",
+    label: "Green roof (sedum)",
+    life: "40+ yr membrane life under planting (typical)",
+    perSquare: [1650, 2600],
     colors: [
-      { id: "terracotta", label: "Terracotta", hex: "#a2553b" },
-      { id: "charcoal", label: "Charcoal", hex: "#3c3c3e" },
-      { id: "sandstone", label: "Sandstone", hex: "#b19a79" },
+      { id: "summer", label: "Summer green", hex: "#6f7d45" },
+      { id: "autumn", label: "Autumn bronze", hex: "#8a6a45" },
     ],
   },
   {
-    id: "slate",
-    label: "Natural slate",
-    life: "75+ yr service life (typical)",
-    perSquare: [1650, 2300],
+    id: "ballast",
+    label: "Ballasted gravel",
+    life: "25–30 yr membrane under stone (typical)",
+    perSquare: [640, 920],
     colors: [
-      { id: "blue-black", label: "Blue-black", hex: "#33373d" },
-      { id: "grey-green", label: "Grey-green", hex: "#56615b" },
-      { id: "heather", label: "Heather", hex: "#5a4e55" },
+      { id: "river", label: "River pebble", hex: "#b7b0a3" },
+      { id: "granite", label: "Granite chip", hex: "#8b8c8c" },
     ],
   },
 ];
 
 export const ROOF_MATERIAL_BY_ID = Object.fromEntries(ROOF_MATERIALS.map((m) => [m.id, m])) as Record<RoofMaterialId, RoofMaterial>;
-export const ROOF_TEAROFF_PER_SQUARE: [number, number] = [95, 140];
-export const ROOF_FLASHING: [number, number] = [1800, 2600];
+export const ROOF_TEAROFF_PER_SQUARE: [number, number] = [120, 180];
+/** coping, upstands, drains and edge trim */
+export const ROOF_FLASHING: [number, number] = [2600, 3800];
 
 export type RoofIssueId = "leak" | "damage" | "storm" | "age";
 export const ROOF_ISSUES: Choice<RoofIssueId>[] = [
   { id: "leak", label: "Leak or water stain" },
-  { id: "damage", label: "Missing or broken" },
+  { id: "damage", label: "Ponding, blisters or splits" },
   { id: "storm", label: "Storm or hail damage" },
   { id: "age", label: "Just old — worried" },
 ];
@@ -136,10 +134,11 @@ export const COATINGS: (Choice<CoatingId> & { perTonne: [number, number]; hex: s
 ];
 export const STEEL_FAB_PER_TONNE: [number, number] = [2350, 2950];
 
+/** Parallel-chord roof trusses spanning the upper floor (the flat roof sits on them). */
 export const TRUSSES = [
-  { id: "fink" as const, label: "Fink (W)", detail: "Economical, common for pitched roofs" },
-  { id: "howe" as const, label: "Howe", detail: "Verticals in tension, diagonals in compression" },
+  { id: "warren" as const, label: "Warren", detail: "Alternating diagonals, no verticals: light and even" },
   { id: "pratt" as const, label: "Pratt", detail: "Diagonals in tension under roof load" },
+  { id: "howe" as const, label: "Howe", detail: "Verticals in tension, diagonals in compression" },
 ];
 
 /* -------------------------------------------------------------------- solar */
@@ -156,7 +155,7 @@ export type OffsetId = "some" | "most" | "all";
 export const OFFSETS: (Choice<OffsetId> & { panels: number })[] = [
   { id: "some", label: "Some", detail: "Take the edge off", panels: 8 },
   { id: "most", label: "Most", detail: "Cover the daytime", panels: 14 },
-  { id: "all", label: "As much as fits", detail: "Use the whole slope", panels: 18 },
+  { id: "all", label: "As much as fits", detail: "Use the whole roof", panels: 18 },
 ];
 
 export type RoofAgeId = "<10" | "10-20" | "20+" | "unsure";

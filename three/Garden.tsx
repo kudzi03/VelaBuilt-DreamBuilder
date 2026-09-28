@@ -8,7 +8,7 @@ import { GARDEN as G, MAIN, WING } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty, SKY_GLSL, SKY_UNIFORMS } from "./Atmosphere";
 import { box, merge, rbox, type Placed } from "./geom";
-import { Beds, CLUMP, FERNS, GRASS, mix, type Bed } from "./beds";
+import { Beds, CLUMP, FERNS, mix, type Bed } from "./beds";
 import { type PlantPlacement } from "./impostor";
 import { PlantField } from "./plantfield";
 import { lampLit, registerLamps, unregisterLamps, updateLampViewPositions, type Lamp } from "./lamps";
@@ -33,9 +33,16 @@ const POOL_DEPTH = 1.35;
 const WATER_Y = -0.12;
 const COPE = 0.4;
 
+/** Underwater lights: [x, y, z, facing x, facing z] on the pool's east and north walls. */
+const POOL_LIGHTS: [number, number, number, number, number][] = [
+  [PL.x1 - 0.03, -0.5, -12.6, -1, 0],
+  [PL.x1 - 0.03, -0.5, -9.0, -1, 0],
+  [(PL.x0 + PL.x1) / 2, -0.5, PL.z1 - 0.03, 0, -1],
+];
+
 const GARDEN_LAMPS: Lamp[] = [
-  // pool light, low in the water at the house end
-  { pos: [(PL.x0 + PL.x1) / 2, -0.9, (PL.z0 + PL.z1) / 2 + 1.5], color: "#a6ecf7", power: 5.5, range: 7, group: "garden" },
+  // underwater lights in the far walls: warm white beams across the pool
+  ...POOL_LIGHTS.map(([x, y, z, dx, dz]): Lamp => ({ pos: [x + dx * 0.1, y, z + dz * 0.1], color: "#fff0d6", power: 7, range: 5.5, group: "garden", cone: { dir: [dx, -0.28, dz], inner: 28, outer: 62 } })),
   // pergola: warm downlight over the seating
   { pos: [(PG.x0 + PG.x1) / 2, PG.h - 0.35, (PG.z0 + PG.z1) / 2], color: "#ffbd78", power: 10, range: 6, group: "garden" },
   // path bollards (pool side of the stepping stones)
@@ -175,17 +182,14 @@ function planting(): GardenPlants {
 }
 
 /**
- * Beds under the shrubs: ferns along the west gable (outside its gravel margin), the strip
- * between the pool and the terrace, the garden's west edge and the back boundary.
+ * Beds under the shrubs: the strip between the pool and the terrace, the garden's west edge and
+ * the back boundary.
  */
 const BEDS_CORE: Bed[] = [
-  { x0: MAIN.x0 - 1.5, x1: MAIN.x0 - 0.47, z0: MAIN.z0 + 0.25, z1: MAIN.z1 + 0.2, every: 0.62, fill: [mix(FERNS, 3), mix(CLUMP, 1)], seed: 3 },
-  { x0: G.x0 + 0.05, x1: PL.x0 - COPE - 0.12, z0: -10.7, z1: -4.3, every: 0.6, fill: [mix(FERNS, 1), mix(GRASS, 2)], seed: 5 },
+  { x0: G.x0 + 0.05, x1: PL.x0 - COPE - 0.12, z0: -10.7, z1: -4.3, every: 0.6, fill: [mix(FERNS, 2), mix(CLUMP, 1, [1.1, 1.5])], seed: 5 },
 ];
 const BEDS_LUSH: Bed[] = [
-  // kept low: the arrival shots look across it at the terrace
-  { x0: PL.x1 + COPE + 0.1, x1: P.x0 - 0.06, z0: P.z0 + 0.2, z1: -6.6, every: 0.5, fill: [mix(FERNS, 2, [1.0, 1.3]), mix(CLUMP, 2, [1.0, 1.4])], seed: 7 },
-  { x0: -6.8, x1: WING.x0 + 0.1, z0: G.z0 + 0.1, z1: G.z0 + 1.6, every: 0.55, fill: [mix(GRASS, 2), mix(FERNS, 1)], seed: 11 },
+  { x0: -6.8, x1: WING.x0 + 0.1, z0: G.z0 + 0.1, z1: G.z0 + 1.6, every: 0.55, fill: [mix(FERNS, 1), mix(CLUMP, 2, [1.1, 1.5])], seed: 11 },
 ];
 
 const STONES: Array<[number, number]> = [
@@ -231,6 +235,7 @@ export function Garden() {
     plug.translate((PL.x0 + PL.x1) / 2, -0.005, (PL.z0 + PL.z1) / 2);
     const bollards: Placed[] = [];
     const bollardTops: Placed[] = [];
+    for (const [x, y, z, dx] of POOL_LIGHTS) bollardTops.push({ geo: new THREE.CircleGeometry(0.09, 20), pos: [x, y, z], rot: [0, dx ? -Math.PI / 2 : Math.PI, 0] });
     STONES.forEach(([x, z], i) => {
       if (i % 3 === 0) {
         bollards.push({ geo: new THREE.CylinderGeometry(0.05, 0.05, 0.5, 16), pos: [x, 0.25, z - 0.7] });
@@ -279,7 +284,7 @@ export function Garden() {
       coping: s(lit(pbr("paver_stone", { roughness: 1, envMapIntensity: 0.8 }))),
       // the shell is only ever seen through water, so it carries the water's absorption colour
       // the shell is seen through the water: absorption, caustics and the lit haze are applied to it
-      shell: s(underwater(lampLit(pbr("pool_tile", { color: "#bfe3e6", roughness: 0.35, envMapIntensity: 0.4 }), ["garden"]), POOL_U)),
+      shell: s(underwater(lampLit(pbr("pool_tile", { color: "#9fd0d5", roughness: 0.35, envMapIntensity: 0.4 }), ["garden"]), POOL_U)),
       water: s(waterMaterial()),
       steel: s(lit(solid("#2a2724", 0.45, 0.7))),
       timber: s(lit(pbr("cedar", { color: "#e8d6c2", roughness: 1 }))),
@@ -422,7 +427,8 @@ float h(vec2 p) {
 vec3 waterNormal(vec3 w) {
   vec2 e = vec2(0.04, 0.0);
   vec2 p = w.xz * 1.4;
-  return normalize(vec3(h(p - e.xy) - h(p + e.xy), 0.34, h(p - e.yx) - h(p + e.yx)));
+  // still evening water: a gentle ruffle that keeps the reflection readable
+  return normalize(vec3(h(p - e.xy) - h(p + e.xy), 0.85, h(p - e.yx) - h(p + e.yx)));
 }
 `;
 
@@ -469,7 +475,7 @@ function underwater<T extends THREE.MeshStandardMaterial>(m: T, u: { uTime: { va
         float pl = pd * (1.0 / max(pv.y, 0.14) + 1.1);
         vec3 pt = exp(-vec3(0.42, 0.075, 0.05) * pl);
         outgoingLight += diffuseColor.rgb * causticAt(vPoolW.xz, uTime * 0.55) * uCaustic * 1.6 * smoothstep(0.02, 0.2, pd);
-        vec3 pscatter = vec3(0.01, 0.055, 0.07) * (0.25 + 0.75 * uCaustic) + vec3(0.0, 0.09, 0.11) * uGlow;
+        vec3 pscatter = vec3(0.01, 0.055, 0.07) * (0.25 + 0.75 * uCaustic) + vec3(0.02, 0.065, 0.08) * uGlow;
         outgoingLight = outgoingLight * pt + pscatter * (1.0 - pt);
         #include <opaque_fragment>`,
       );
@@ -516,10 +522,11 @@ const REFLECTIVE_WATER = {
       vec3 V = normalize(cameraPosition - vW);
       float f = 0.02 + 0.98 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
       vec4 uvr = vUvR;
-      uvr.xy += n.xz * 0.06 * uvr.w;
+      uvr.xy += n.xz * 0.025 * uvr.w;
       vec3 refl = texture2DProj(tDiffuse, uvr).rgb;
       // reflection on top; the lit, tinted shell shows through (premultiplied: src + dst * a)
-      float fr = clamp(f * 1.15 + 0.06, 0.0, 1.0);
+      // by day the pool shows its water; after dark the lit house mirrors in it
+      float fr = clamp(f * 1.15 + 0.05 + 0.1 * uGlow, 0.0, 1.0);
       gl_FragColor = vec4(refl * fr + vec3(0.004, 0.02, 0.024), (1.0 - fr) * 0.86);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>

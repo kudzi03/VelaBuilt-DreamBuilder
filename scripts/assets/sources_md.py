@@ -53,9 +53,9 @@ photograph and re-added as a light; stored as linear radiance in WebP).
 ## Surface textures
 
 Built by `scripts/assets/build_textures.py` into `public/assets/tex/<id>/{{color,normal,arm}}_<px>.webp`
-at true scale (each set records the metres it covers). Composites — pavers, large-format
-porcelain, shingles — are cut from these scans; the slate veneer of the stone base is graded from
-Castle Wall Slates; the black granite is graded from a pale one.
+at true scale (each set records the metres it covers). Composites — limestone cladding and pavers,
+large-format porcelain — are cut from these scans; the roof membrane is composed on a generated
+base; the black granite is graded from a pale one.
 
 ### Poly Haven
 
@@ -109,7 +109,7 @@ Loaded with `next/font/google` and self-hosted at build time.
 | Asset | How |
 | --- | --- |
 | Architecture, kitchen joinery, steel frame and connections, ducts, garden furniture | Modelled in code from the single spec in `lib/spec.ts` and `lib/steel.ts` |
-| Pavers, porcelain, shingles (new and weathered), standing-seam pan | Composited from the scans above, `scripts/assets/build_textures.py` |
+| Limestone cladding, pavers, porcelain, single-ply roof membrane, standing-seam pan | Composited from the scans above (the membrane from generated noise), `scripts/assets/build_textures.py` |
 | Leaf and sprig cards, bark LODs | Derived from the tree scans above, `scripts/assets/build_trees.py` and `.mjs` |
 | Solar cell pattern | Generated on the device, `three/proc.ts` |
 | Industry tile stills `public/previews/*.webp` | Rendered from the live scene, `scripts/og/previews.mjs` |

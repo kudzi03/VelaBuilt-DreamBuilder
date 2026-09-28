@@ -4,87 +4,106 @@ import { Html } from "@react-three/drei";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { ROOF_ISSUES, ROOF_MATERIAL_BY_ID } from "@/lib/options";
-import { MAIN, MAIN_RIDGE_Y, MAIN_RIDGE_Z, ROOF_PLANE_BY_ID, ROOF_PLANES, WING, WING_RIDGE_X, WING_RIDGE_Y, type RoofPlane, type RoofSectionId } from "@/lib/spec";
+import { ROOF_ISSUES, ROOF_MATERIAL_BY_ID, type RoofMaterialId } from "@/lib/options";
+import { ROOF_PLANE_BY_ID, ROOF_PLANES, type RoofPlane, type RoofSectionId } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
-import { box, merge, planeMatrix, roofBody, roofSurface, type Placed } from "./geom";
+import { box, merge, type Placed } from "./geom";
 import { pbr, tintFor, type TexId } from "./materials";
 import { channels, depthFor, fades, lazyCache, patch, wipes } from "./shared";
 
-export const ROOF_T = 0.2;
-const MAIN_IDS: RoofSectionId[] = ["main-front", "main-rear"];
-const WING_IDS: RoofSectionId[] = ["wing-garden", "wing-side"];
+/**
+ * The two flat roofs. Each is a thin slab with a dark edge; on top, a low coping upstand all
+ * round and, inside it, the roof system the customer picked: single-ply membrane, standing-seam
+ * metal, a sedum green roof in a gravel margin, or gravel ballast. Drains sit in the field.
+ * UVs are metres (u along x, v toward the garden).
+ */
 
-function ribs(planes: RoofPlane[]): Placed[] {
+/** coping upstand: width and height above the roof surface */
+const COPING_W = 0.22;
+const COPING_H = 0.12;
+/** green roofs keep a vegetation-free gravel margin inside the coping */
+const MARGIN_W = 0.45;
+
+type Kind = RoofMaterialId;
+const TEX: Record<Kind, TexId> = { membrane: "membrane", metal: "seam", green: "meadow", ballast: "gravel" };
+
+/** A rectangle on the roof surface, inset from the slab edge, lifted by `lift`. UVs in metres. */
+function field(p: RoofPlane, inset: number, lift: number): THREE.BufferGeometry {
+  const w = p.width - inset * 2;
+  const l = p.length - inset * 2;
+  const g = new THREE.PlaneGeometry(w, l);
+  g.rotateX(-Math.PI / 2);
+  const uv = g.attributes.uv as THREE.BufferAttribute;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w, uv.getY(i) * l);
+  g.translate(p.origin[0] + p.width / 2, p.origin[1] + lift, p.origin[2] - p.length / 2);
+  return g;
+}
+
+/** A frame (ring) of strips round the roof, `w` wide and `h` tall, from `inset` inwards. */
+function ring(p: RoofPlane, inset: number, w: number, h: number, y: number): Placed[] {
+  const cx = p.origin[0] + p.width / 2;
+  const cz = p.origin[2] - p.length / 2;
+  const W = p.width - inset * 2;
+  const L = p.length - inset * 2;
+  return [
+    { geo: box(W, h, w), pos: [cx, y + h / 2, cz + L / 2 - w / 2] },
+    { geo: box(W, h, w), pos: [cx, y + h / 2, cz - L / 2 + w / 2] },
+    { geo: box(w, h, L - w * 2), pos: [cx - W / 2 + w / 2, y + h / 2, cz] },
+    { geo: box(w, h, L - w * 2), pos: [cx + W / 2 - w / 2, y + h / 2, cz] },
+  ];
+}
+
+/** Slab under the surface: the dark edge seen from the ground (its underside is the soffit, drawn by the house). */
+function slab(p: RoofPlane): THREE.BufferGeometry {
+  const g = box(p.width, p.thickness - 0.01, p.length);
+  g.translate(p.origin[0] + p.width / 2, p.origin[1] - (p.thickness - 0.01) / 2 - 0.005, p.origin[2] - p.length / 2);
+  return g;
+}
+
+/** Standing seams every 0.46 m, running toward the garden (the fall of the roof). */
+function seams(p: RoofPlane): Placed[] {
+  const inset = COPING_W;
+  const w = p.width - inset * 2;
+  const n = Math.floor(w / 0.46);
+  const start = inset + (w - (n - 1) * 0.46) / 2;
   const out: Placed[] = [];
-  const spacing = 0.46;
-  for (const p of planes) {
-    const n = Math.floor(p.width / spacing);
-    const start = (p.width - (n - 1) * spacing) / 2;
-    for (let i = 0; i < n; i++) {
-      out.push({ geo: box(0.022, 0.045, p.length), matrix: planeMatrix(p, start + i * spacing, p.length / 2, ROOF_T + 0.022) });
-    }
+  for (let i = 0; i < n; i++) out.push({ geo: box(0.022, 0.04, p.length - inset * 2), pos: [p.origin[0] + start + i * 0.46, p.origin[1] + 0.02, p.origin[2] - p.length / 2] });
+  return out;
+}
+
+/** Outlets in the field (two per roof), with their gratings. */
+function drains(p: RoofPlane): Placed[] {
+  const out: Placed[] = [];
+  for (const f of [0.25, 0.75]) {
+    const g = new THREE.CylinderGeometry(0.11, 0.11, 0.02, 20);
+    out.push({ geo: g, pos: [p.origin[0] + p.width * f, p.origin[1] + 0.012, p.origin[2] - p.length + COPING_W + 0.5] });
   }
   return out;
 }
 
-function gutters(planes: RoofPlane[]): Placed[] {
-  const out: Placed[] = [];
-  for (const p of planes) {
-    const g = new THREE.CylinderGeometry(0.075, 0.075, p.width, 10, 1);
-    const U3 = new THREE.Vector3(...p.u);
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), U3);
-    const pos = new THREE.Vector3(...p.origin)
-      .addScaledVector(U3, p.width / 2)
-      .addScaledVector(new THREE.Vector3(...p.v), -0.06)
-      .add(new THREE.Vector3(0, 0.02, 0));
-    out.push({ geo: g, matrix: new THREE.Matrix4().compose(pos, q, new THREE.Vector3(1, 1, 1)) });
-    // downspouts tucked against the wall corners
-    const top = pos.y;
-    const V3 = new THREE.Vector3(...p.v);
-    const inV = p.overhangV - 0.1; // just outside the wall line
-    const ends = p.id.startsWith("main") ? [MAIN.rakeOverhang + 0.18, p.width - MAIN.rakeOverhang - 0.18] : p.id === "wing-garden" ? [WING.rakeOverhang + 0.18] : [p.width - WING.rakeOverhang - 0.18];
-    for (const end of ends) {
-      const at = new THREE.Vector3(...p.origin).addScaledVector(U3, end).addScaledVector(V3, inV);
-      out.push({ geo: box(0.08, top, 0.08), pos: [at.x, top / 2, at.z] });
-      out.push({ geo: box(0.08, 0.08, inV + 0.12), matrix: new THREE.Matrix4().makeBasis(U3, new THREE.Vector3(0, 1, 0), new THREE.Vector3().crossVectors(U3, new THREE.Vector3(0, 1, 0))).setPosition(new THREE.Vector3(...p.origin).addScaledVector(U3, end).addScaledVector(V3, inV / 2 - 0.03).setY(top - 0.04)) });
-    }
-  }
-  return out;
-}
-
-function ridgeCaps(): { main: Placed[]; wing: Placed[] } {
-  const mainLen = MAIN.x1 - MAIN.x0 + MAIN.rakeOverhang * 2;
-  const wingLen = WING.z1 - WING.z0 + WING.rakeOverhang;
-  return {
-    main: [{ geo: box(mainLen, 0.1, 0.3), pos: [(MAIN.x0 + MAIN.x1) / 2, MAIN_RIDGE_Y + ROOF_T / Math.cos((MAIN.pitchDeg * Math.PI) / 180) + 0.02, MAIN_RIDGE_Z] }],
-    wing: [{ geo: box(0.3, 0.1, wingLen), pos: [WING_RIDGE_X, WING_RIDGE_Y + ROOF_T / Math.cos((WING.pitchDeg * Math.PI) / 180) + 0.02, (WING.z0 - WING.rakeOverhang + WING.z1) / 2] }],
-  };
-}
-
-type Kind = "shingle" | "metal" | "tile" | "slate";
-const TEX: Record<Kind, TexId> = { shingle: "shingle", metal: "seam", tile: "tile_roof", slate: "slate" };
-
-/** CC0-based sets (scripts/assets/build_textures.py) at true scale; UVs are metres along the eave and up the slope. */
 function makeSurfaceMaterial(kind: Kind, fade?: { value: number }) {
   const base = { cut: "solid" as const, wipe: { side: "after" as const, u: wipes.roof }, fade };
   if (kind === "metal") return patch(pbr("seam", { metalMap: true, normalScale: 0.6 }), base);
-  return patch(pbr(TEX[kind], { normalScale: kind === "shingle" ? 1.2 : 1 }), base);
+  if (kind === "green") return patch(pbr("meadow", { roughness: 1, envMapIntensity: 0.5, scale: 0.6 }), base);
+  if (kind === "ballast") return patch(pbr("gravel", { roughness: 1, envMapIntensity: 0.6, scale: 0.7 }), base);
+  return patch(pbr("membrane", { normalScale: 0.8, envMapIntensity: 0.8 }), base);
 }
 
 /** Tuned so the colour on the roof reads as the swatch the customer picked, even in low warm sun. */
 function tuneForColor(m: THREE.MeshStandardMaterial, kind: Kind, colorId: string, hexColor: string) {
-  // greyscale sets are tinted so their average is the swatch
   tintFor(TEX[kind], hexColor, m.color);
   const dark = new THREE.Color(hexColor).getHSL({ h: 0, s: 0, l: 0 }).l < 0.2;
-  m.envMapIntensity = dark ? 0.55 : 0.9;
+  m.envMapIntensity = dark ? 0.55 : 0.85;
   if (kind === "metal") {
     // the seam set carries roughness 0.5 and metal 1 in its maps: factors scale them
     const bright = colorId === "galvalume";
     m.metalness = bright ? 0.85 : dark ? 0.15 : 0.45;
     m.roughness = (bright ? 0.32 : dark ? 0.78 : 0.5) / 0.5;
+  } else if (kind === "membrane") {
+    // single-ply is satin; EPDM is flatter
+    m.roughness = colorId === "charcoal" ? 1.5 : 1.0;
   } else {
-    m.roughness = dark ? 1.08 : 1;
+    m.roughness = 1;
   }
 }
 
@@ -101,22 +120,19 @@ export function Roof() {
   const [hover, setHover] = useState<RoofSectionId | null>(null);
 
   const geo = useMemo(() => {
-    const surf = Object.fromEntries(ROOF_PLANES.map((p) => [p.id, roofSurface(p, ROOF_T)])) as Record<RoofSectionId, THREE.BufferGeometry>;
-    const overlay = Object.fromEntries(ROOF_PLANES.map((p) => [p.id, roofSurface(p, ROOF_T + 0.06)])) as Record<RoofSectionId, THREE.BufferGeometry>;
-    const caps = ridgeCaps();
-    return {
-      surf,
-      overlay,
-      mainBody: merge(MAIN_IDS.map((id) => ({ geo: roofBody(ROOF_PLANE_BY_ID[id], ROOF_T) }))),
-      wingBody: merge(WING_IDS.map((id) => ({ geo: roofBody(ROOF_PLANE_BY_ID[id], ROOF_T) }))),
-      mainRibs: merge(ribs(MAIN_IDS.map((id) => ROOF_PLANE_BY_ID[id]))),
-      wingRibs: merge(ribs(WING_IDS.map((id) => ROOF_PLANE_BY_ID[id]))),
-      mainGutters: merge(gutters(MAIN_IDS.map((id) => ROOF_PLANE_BY_ID[id]))),
-      wingGutters: merge(gutters(WING_IDS.map((id) => ROOF_PLANE_BY_ID[id]))),
-      mainCap: merge(caps.main),
-      wingCap: merge(caps.wing),
-    };
+    const per = (p: RoofPlane) => ({
+      slab: slab(p),
+      coping: merge(ring(p, 0, COPING_W, COPING_H, p.origin[1] - 0.01)),
+      field: field(p, COPING_W, 0.004),
+      inner: field(p, COPING_W + MARGIN_W, 0.02),
+      margin: merge(ring(p, COPING_W, MARGIN_W, 0.03, p.origin[1])),
+      seams: merge(seams(p)),
+      drains: merge(drains(p)),
+      overlay: field(p, 0, 0.1),
+    });
+    return { main: per(ROOF_PLANE_BY_ID["main-roof"]), wing: per(ROOF_PLANE_BY_ID["wing-roof"]) };
   }, []);
+  useEffect(() => () => Object.values(geo).forEach((g) => Object.values(g).forEach((x) => x.dispose())), [geo]);
 
   // One material per roof kind, built on first use (main + wing; the wing fades while lifted).
   // Colour changes never recompile.
@@ -124,20 +140,20 @@ export function Roof() {
   const mats = useMemo(() => {
     const kind = (k: Kind, wing: boolean) => lazy.get(`${k}${wing}`, () => makeSurfaceMaterial(k, wing ? fades.wingRoof : undefined)) as THREE.MeshStandardMaterial;
     const worn = (wing: boolean) =>
-      lazy.get(`worn${wing}`, () => patch(pbr("shingle_worn", { color: "#a9a49b", normalScale: 1.3, envMapIntensity: 0.5 }), { cut: "solid", wipe: { side: "before", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined })) as THREE.MeshStandardMaterial;
-    const trim = patch(new THREE.MeshStandardMaterial({ color: "#232427", roughness: 0.5, metalness: 0.3 }), { cut: "solid" });
-    const trimWing = patch(new THREE.MeshStandardMaterial({ color: "#232427", roughness: 0.5, metalness: 0.3 }), { cut: "solid", fade: fades.wingRoof });
-    const cap = patch(new THREE.MeshStandardMaterial({ color: "#2c2d30", roughness: 0.6 }), { cut: "solid", wipe: { side: "after", u: wipes.roof } });
-    const capWing = patch(new THREE.MeshStandardMaterial({ color: "#2c2d30", roughness: 0.6 }), { cut: "solid", wipe: { side: "after", u: wipes.roof }, fade: fades.wingRoof });
+      lazy.get(`worn${wing}`, () => patch(pbr("concrete", { color: "#8f8a82", normalScale: 1.2, envMapIntensity: 0.4 }), { cut: "solid", wipe: { side: "before", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined })) as THREE.MeshStandardMaterial;
+    const margin = (wing: boolean) => lazy.get(`margin${wing}`, () => patch(pbr("gravel", { color: "#b9b3a8", roughness: 1, scale: 0.6 }), { cut: "solid", wipe: { side: "after", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined })) as THREE.MeshStandardMaterial;
+    // the slab edge and the coping: dark bronze, as the window frames
+    const edge = (wing: boolean) => patch(new THREE.MeshStandardMaterial({ color: "#26241f", roughness: 0.5, metalness: 0.55, envMapIntensity: 0.9 }), { cut: "solid", fade: wing ? fades.wingRoof : undefined });
+    const drain = patch(new THREE.MeshStandardMaterial({ color: "#3a3a3a", roughness: 0.6, metalness: 0.6 }), { cut: "solid" });
     const overlay = Object.fromEntries(
       ROOF_PLANES.map((p) => [p.id, new THREE.MeshBasicMaterial({ color: "#e3892a", transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })]),
     ) as Record<RoofSectionId, THREE.MeshBasicMaterial>;
-    return { kind, worn, trim, trimWing, cap, capWing, overlay };
+    return { kind, worn, margin, edge: edge(false), edgeWing: edge(true), drain, overlay };
   }, [lazy]);
   useEffect(
     () => () => {
       lazy.dispose();
-      [mats.trim, mats.trimWing, mats.cap, mats.capWing, ...Object.values(mats.overlay)].forEach((m) => m.dispose());
+      [mats.edge, mats.edgeWing, mats.drain, ...Object.values(mats.overlay)].forEach((m) => m.dispose());
     },
     [lazy, mats],
   );
@@ -147,9 +163,6 @@ export function Roof() {
     const c = m.colors.find((x) => x.id === color) ?? m.colors[0];
     tuneForColor(mats.kind(material, false), material, c.id, c.hex);
     tuneForColor(mats.kind(material, true), material, c.id, c.hex);
-    const capHex = new THREE.Color(c.hex).multiplyScalar(material === "metal" ? 1 : 0.85);
-    mats.cap.color.copy(capHex);
-    mats.capWing.color.copy(capHex);
   }, [material, color, mats]);
 
   const depthSolid = useMemo(() => depthFor({ cut: "solid" }), []);
@@ -203,29 +216,28 @@ export function Roof() {
     },
   });
 
+  const roof = (id: RoofSectionId, g: (typeof geo)["main"], wing: boolean) => {
+    const depth = wing ? depthWing : depthSolid;
+    const edge = wing ? mats.edgeWing : mats.edge;
+    const green = K === "green";
+    return (
+      <>
+        <mesh geometry={g.slab} material={edge} castShadow receiveShadow customDepthMaterial={depth} />
+        <mesh geometry={g.coping} material={edge} castShadow receiveShadow customDepthMaterial={depth} />
+        <mesh geometry={green ? g.inner : g.field} material={mats.kind(K, wing)} receiveShadow {...surfaceProps(id)} />
+        {green && <mesh geometry={g.margin} material={mats.margin(wing)} receiveShadow {...surfaceProps(id)} />}
+        {K === "metal" && <mesh geometry={g.seams} material={mats.kind("metal", wing)} castShadow receiveShadow customDepthMaterial={depth} />}
+        {(K === "membrane" || K === "metal") && <mesh geometry={g.drains} material={mats.drain} />}
+        {showBefore && <mesh geometry={g.field} material={mats.worn(wing)} receiveShadow />}
+      </>
+    );
+  };
+
   return (
     <group name="roof">
-      {/* main roof */}
-      {MAIN_IDS.map((id) => (
-        <mesh key={id} geometry={geo.surf[id]} material={mats.kind(K, false)} castShadow receiveShadow customDepthMaterial={depthSolid} {...surfaceProps(id)} />
-      ))}
-      <mesh geometry={geo.mainBody} material={mats.trim} castShadow receiveShadow customDepthMaterial={depthSolid} />
-      <mesh geometry={geo.mainCap} material={mats.cap} castShadow customDepthMaterial={depthSolid} />
-      <mesh geometry={geo.mainGutters} material={mats.trim} castShadow customDepthMaterial={depthSolid} />
-      {K === "metal" && <mesh geometry={geo.mainRibs} material={mats.kind("metal", false)} castShadow receiveShadow customDepthMaterial={depthSolid} />}
-      {showBefore && MAIN_IDS.map((id) => <mesh key={`b${id}`} geometry={geo.surf[id]} material={mats.worn(false)} receiveShadow />)}
-
-      {/* kitchen wing roof — lifts away for the remodeling cutaway */}
-      <group ref={wingGroup}>
-        {WING_IDS.map((id) => (
-          <mesh key={id} geometry={geo.surf[id]} material={mats.kind(K, true)} castShadow receiveShadow customDepthMaterial={depthWing} {...surfaceProps(id)} />
-        ))}
-        <mesh geometry={geo.wingBody} material={mats.trimWing} castShadow receiveShadow customDepthMaterial={depthWing} />
-        <mesh geometry={geo.wingCap} material={mats.capWing} castShadow customDepthMaterial={depthWing} />
-        <mesh geometry={geo.wingGutters} material={mats.trimWing} castShadow customDepthMaterial={depthWing} />
-        {K === "metal" && <mesh geometry={geo.wingRibs} material={mats.kind("metal", true)} castShadow receiveShadow customDepthMaterial={depthWing} />}
-        {showBefore && WING_IDS.map((id) => <mesh key={`b${id}`} geometry={geo.surf[id]} material={mats.worn(true)} receiveShadow />)}
-      </group>
+      {roof("main-roof", geo.main, false)}
+      {/* kitchen pavilion roof — lifts away for the remodeling cutaway */}
+      <group ref={wingGroup}>{roof("wing-roof", geo.wing, true)}</group>
 
       {/* inspection overlays */}
       {ROOF_PLANES.map((p) => (
@@ -234,7 +246,7 @@ export function Roof() {
           ref={(m) => {
             overlayRef.current[p.id] = m;
           }}
-          geometry={geo.overlay[p.id]}
+          geometry={p.id === "main-roof" ? geo.main.overlay : geo.wing.overlay}
           material={mats.overlay[p.id]}
           visible={false}
           renderOrder={4}

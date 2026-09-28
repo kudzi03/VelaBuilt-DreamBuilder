@@ -192,6 +192,13 @@ shadows or post-processing, 512 px textures. Phones get the 512 px textures and 
 every tier. Without WebGL the demo shows a poster and every panel, estimate and the full business
 flow still work.
 
+**Plants.** Every plant is drawn at one of three levels, chosen per plant each frame, nearest
+first: the full 3D tree near the camera, a sparser 3D tree in the middle distance, the baked
+impostor beyond (and for the woodland ring). Budgets differ by tier and screen — on desktop up to
+16 full-detail plants of a species, on phones 5, on the lowest tier none. Phones reveal the
+property on the impostors and swap the 3D trees in right after; desktops load them before the
+reveal. Planting-bed ground cover is instanced and thinned on phones.
+
 `prefers-reduced-motion` replaces camera flights with cuts, removes idle drift and
 shortens the flow sequence.
 

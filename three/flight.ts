@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GARDEN, MAIN, MAIN_RIDGE_Y, MAIN_RIDGE_Z, MAIN_TAN, WING, WING_RIDGE_X, WING_RIDGE_Y, WING_TAN } from "@/lib/spec";
+import { BALCONY, GARDEN, MAIN, MAIN_ROOF, MAIN_TOP, WING, WING_ROOF, WING_TOP } from "@/lib/spec";
 import { plant, type PlantId } from "./impostor";
 
 /**
@@ -17,22 +17,17 @@ const PIVOT = v3(0.5, 0, -4.5);
 /** keep this far off walls and roofs (the near plane, and a little air) */
 const MARGIN = 0.7;
 
-/** Solid volumes: each roofed block as walls up to the soffit and a roof prism (with its overhangs) above; the pergola; the entrance canopy. */
+/** Solid volumes: each block as walls under its roof slab (with the slab's overhangs), the balcony, the pergola, the entrance canopy. */
 function solid(p: V, m = MARGIN): boolean {
-  // main house
-  const mSoffit = MAIN.eave - MAIN.eaveOverhang * MAIN_TAN - 0.35;
-  const mo = p.y > mSoffit - m ? 1 : 0;
-  if (p.x > MAIN.x0 - mo * MAIN.rakeOverhang - m && p.x < MAIN.x1 + mo * MAIN.rakeOverhang + m && p.z > MAIN.z0 - mo * MAIN.eaveOverhang - m && p.z < MAIN.z1 + mo * MAIN.eaveOverhang + m) {
-    const roof = Math.max(MAIN.eave, MAIN_RIDGE_Y - Math.abs(p.z - MAIN_RIDGE_Z) * MAIN_TAN);
-    if (p.y < roof + m) return true;
-  }
-  // kitchen wing (dies into the main house at z1)
-  const wSoffit = WING.eave - WING.eaveOverhang * WING_TAN - 0.35;
-  const wo = p.y > wSoffit - m ? 1 : 0;
-  if (p.x > WING.x0 - wo * WING.eaveOverhang - m && p.x < WING.x1 + wo * WING.eaveOverhang + m && p.z > WING.z0 - wo * WING.rakeOverhang - m && p.z < WING.z1) {
-    const roof = Math.max(WING.eave, WING_RIDGE_Y - Math.abs(p.x - WING_RIDGE_X) * WING_TAN);
-    if (p.y < roof + m) return true;
-  }
+  const inBox = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number) => p.x > x0 - m && p.x < x1 + m && p.z > z0 - m && p.z < z1 + m && p.y > y0 - m && p.y < y1 + m;
+  // main volume, its roof slab, and the cantilevered balcony (slab and glass rail)
+  if (inBox(MAIN.x0, MAIN.x1, MAIN.z0, MAIN.z1, -1, MAIN_TOP)) return true;
+  if (inBox(MAIN_ROOF.x0, MAIN_ROOF.x1, MAIN_ROOF.z0, MAIN_ROOF.z1, MAIN.eave, MAIN_TOP)) return true;
+  if (inBox(BALCONY.x0, MAIN.x0, BALCONY.z0, MAIN.z1, MAIN.level2 - BALCONY.t, MAIN.level2 + BALCONY.rail)) return true;
+  if (inBox(BALCONY.x0, BALCONY.xs, BALCONY.z0, MAIN.z0, MAIN.level2 - BALCONY.t, MAIN.level2 + BALCONY.rail)) return true;
+  // kitchen pavilion (dies into the main house at z1) and its roof slab
+  if (p.z < WING.z1 && inBox(WING.x0, WING.x1, WING.z0, WING.z1, -1, WING_TOP)) return true;
+  if (p.z < WING_ROOF.z1 && inBox(WING_ROOF.x0, WING_ROOF.x1, WING_ROOF.z0, WING_ROOF.z1, WING.eave, WING_TOP)) return true;
   const g = GARDEN.pergola;
   if (p.x > g.x0 - m && p.x < g.x1 + m && p.z > g.z0 - m && p.z < g.z1 + m && p.y < g.h + m) return true;
   // entrance canopy on the street front
@@ -63,7 +58,7 @@ function crownShape(id: string): [number, number] {
   return [0.5, 0]; // shrubs
 }
 
-/** Tree crowns, read from the impostor instances in the scene. */
+/** Tree crowns: every placement of each species (the impostor mesh keeps them all, whatever LOD draws a plant). */
 export function crowns(scene: THREE.Object3D): Crown[] {
   const out: Crown[] = [];
   const m = new THREE.Matrix4();
@@ -77,8 +72,11 @@ export function crowns(scene: THREE.Object3D): Crown[] {
     const rec = plant(id as PlantId);
     if (!rec) return;
     const [kh, k0] = crownShape(id);
-    for (let i = 0; i < im.count; i++) {
-      im.getMatrixAt(i, m);
+    const all = im.userData.placements as THREE.Matrix4[] | undefined;
+    const n = all ? all.length : im.count;
+    for (let i = 0; i < n; i++) {
+      if (all) m.copy(all[i]);
+      else im.getMatrixAt(i, m);
       m.decompose(p, q, s);
       if (Math.hypot(p.x - PIVOT.x, p.z - PIVOT.z) > 48) continue;
       const H = s.x * rec.height;

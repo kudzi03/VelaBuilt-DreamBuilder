@@ -42,8 +42,8 @@ export interface Shot {
 }
 
 export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal" | "hvacOutdoor", Shot> = {
-  // twilight, across the pool to the pavilion and the house
-  hero: { pos: [-15.2, 1.25, -16.8], target: [-2.9, 3.4, -4.9], level: true, fov: 42, fit: [17, 9], overlap: 0.5, orbit: 0.35, tilt: [0.12, 0.08], zoom: [0.8, 1.15], portrait: { pos: [-16.5, 1.35, -19.5], fov: 50, target: [-3.4, 3.9, -5.4] } },
+  // blue hour from the pool's edge: the lit glass house and its reflection in the water
+  hero: { pos: [-15.2, 1.2, -16.8], target: [-5.4, 2.3, -7.0], level: true, fov: 42, fit: [18, 10.5], overlap: 0.5, orbit: 0.35, tilt: [0.12, 0.08], zoom: [0.8, 1.15], portrait: { pos: [-15.4, 1.2, -17.9], fov: 48, target: [-5.2, 2.6, -7.2] } },
   roofing: { pos: [15.5, 12.5, 21], target: [0.6, 5.2, 0.4], fov: 36, fit: [17, 12], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
   solar: { pos: [9.5, 13.5, 20.5], target: [0.2, 6.2, 1.8], fov: 34, fit: [14, 9], orbit: 0.45, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
   // standing at the dining end, looking down the pavilion: island, gable wall, garden glass on the left

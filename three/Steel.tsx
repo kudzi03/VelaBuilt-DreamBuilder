@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { track } from "@/lib/analytics";
 import { TRUSSES } from "@/lib/options";
+import { MAIN_TOP } from "@/lib/spec";
 import { ERECTION_STEPS, SECTIONS, buildFrame, type Member, type SectionId } from "@/lib/steel";
 import { useDemo } from "@/lib/store";
 import { detectUnits } from "@/lib/units";
@@ -425,7 +426,7 @@ export function Steel() {
       ))}
       <Pads points={pads} material={mats.concrete} />
       {stepLabel && (
-        <Html position={[0.5, 10.4, -4]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+        <Html position={[0.5, MAIN_TOP + 2.4, -4]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
           <div className="tag3d tag3d--accent">Erecting · {stepLabel}</div>
         </Html>
       )}
@@ -479,8 +480,8 @@ function calloutsFor(members: Member[], truss: string): CalloutSpec[] {
   const tc = chords.find((m) => m.a[2] > 0) ?? chords[0];
   const name = TRUSSES.find((t) => t.id === truss)?.label ?? "Truss";
   if (tc) out.push({ key: "truss", at: mid(tc, 0.45), k: `${name} trusses`, section: tc.section, suffix: " chords" });
-  const rafter = members.find((m) => m.kind === "rafter" && m.a[2] < -9 && m.a[2] > -11 && m.a[0] > 3);
-  if (rafter) out.push({ key: "portal", at: mid(rafter, 0.5), k: "Portal frames", section: rafter.section });
+  const cant = members.find((m) => m.label === "Balcony cantilever" && m.a[2] === 0);
+  if (cant) out.push({ key: "cantilever", at: mid(cant, 0.6), k: "Balcony cantilevers", section: cant.section });
   const plate = members.find((m) => m.kind === "plate" && m.a[0] === 6 && m.a[2] === 4);
   if (plate) out.push({ key: "base", at: [plate.a[0], 0.03, plate.a[2]], k: "Base plates", section: "PL300", suffix: " · 4 anchors" });
   return out;

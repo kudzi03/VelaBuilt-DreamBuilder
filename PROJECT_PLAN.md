@@ -151,11 +151,11 @@ architectural photography. Pre-overhaul state: git tag `pre-visual-upgrade`.
 | Area | Before | Now |
 | --- | --- | --- |
 | Sky and light | Procedural light studio, flat sky | Two photographed CC0 skies (golden hour → blue hour) drive the visible sky, the image-based light and the sun; a blue-hour grade; fog that matches the horizon behind it |
-| Materials | Canvas-generated textures | CC0 PBR scans at true scale (colour, normal, AO/roughness/metal), composited where needed (stone panels, porcelain, shingles, weathered shingles) — `scripts/assets` |
+| Materials | Canvas-generated textures | CC0 PBR scans at true scale (colour, normal, AO/roughness/metal), composited where needed (limestone panels, porcelain, roof membrane) — `scripts/assets` |
 | Vegetation | Primitive "lollipop" trees | Poly Haven plant scans baked in Cycles to hemi-octahedral impostors, lit live (wrap + translucency), kept off every camera's near field |
-| Architecture | Boxes with holes | Wall thickness, lined reveals, set-back frames, sills and drips, stone base and cedar, glazing that reflects the sky and shows lit, furnished rooms |
+| Architecture | Boxes with holes | A modern glass house: floor-to-ceiling glazing on both floors, thin flat roof slabs with deep lit soffits, a cantilevered balcony with a frameless glass rail, limestone piers, lit and furnished rooms behind the glass |
 | Kitchen | Dollhouse (roof lifted off) | Walk-in, eye-level pavilion: eased-edge joinery, slab backsplash, waterfall island, oak-slat vault, CC0 props, lamps, an interior reflection probe; dated "before" with uppers and a hood |
-| Roofing | Procedural shingles | Laminated shingles, concrete tile, slate, standing seam from scans; weathered "before" with algae streaks and lichen |
+| Roofing | Procedural shingles | Flat-roof systems on two roofs: single-ply membrane (composed from scans), standing seam, sedum green roof in a gravel margin, gravel ballast; coping, drains; a weathered "before" |
 | Steel | Plain extrusions | Filleted I sections, hollow sections, end plates, bolts, gussets, anchor bolts on pads; the house burns away along a glowing section plane; spec callouts |
 | HVAC | Glowing tubes and light cones | X-ray sheet-metal ducts with restrained airflow particles (cool blue / warm amber), solid equipment (CC0 outdoor unit), an east shot for outdoor-unit problems |
 | Camera | Orbit targets with focal offset (moved the camera to clear the UI); damped moves that cut through walls and tree crowns | Photographer shots: position, target, lens; level verticals with real lens shift (off-axis projection) so the UI never moves the camera. Moves between shots are planned flights (`three/flight.ts`): round the building, lifted over tree crowns, into the kitchen only through its glass wall, re-framed mid-flight without stopping |

@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { CabinetId, CounterId, FloorId } from "@/lib/options";
-import { FLOOR_Y, KITCHEN as K, WING, WING_RIDGE_X } from "@/lib/spec";
+import { FLOOR_Y, KITCHEN as K } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { box, merge, rbox, type Placed } from "./geom";
 import { lampLevel, lampLit, registerLamps, unregisterLamps, type Lamp } from "./lamps";
@@ -16,7 +16,7 @@ import { channels as anim, lazyCache, patch, wipes } from "./shared";
 
 /**
  * The kitchen pavilion: worktop runs on the gable wall and the east wall, a bank of tall
- * units, an island under three pendants, a white-oak slatted vault, and the garden through
+ * units, an island under three pendants, a slatted white-oak ceiling, and the garden through
  * the glass wall. Everything the customer can change (fronts, worktop + slab backsplash,
  * floor, island) is a material or a mesh swap; the "before" is a dated kitchen on the same
  * carcasses (oak shaker, uppers and a hood, speckled granite, checker tiles) shown through
@@ -375,43 +375,32 @@ function stools(n: number) {
   return { seat, frame };
 }
 
-/* ---------------------------------------------------------------- the vault */
+/* -------------------------------------------------------------- the ceiling */
 
-const RIDGE_Y_IN = 4.98; // underside of the lining at the ridge (the roof sits just above)
-const EAVE_Y_IN = WING.eave;
-const HALF_SPAN = WING_RIDGE_X - X0;
-const VAULT_TAN = (RIDGE_Y_IN - EAVE_Y_IN) / HALF_SPAN;
-export function vaultY(x: number) {
-  return RIDGE_Y_IN - Math.abs(x - WING_RIDGE_X) * VAULT_TAN;
+/** Underside of the slatted white-oak ceiling (flat, under the pavilion's roof slab). */
+const CEIL_Y = Y0 + K.ceiling;
+export function ceilingY() {
+  return CEIL_Y;
 }
 
 function vault() {
   const slats: Placed[] = [];
   const backing: Placed[] = [];
   const len = Z1 - Z0;
-  const rise = RIDGE_Y_IN - EAVE_Y_IN;
-  const slope = Math.hypot(HALF_SPAN, rise);
-  const ang = Math.atan2(rise, HALF_SPAN);
   const pitch = 0.085;
-  const n = Math.floor(slope / pitch);
-  for (const side of [-1, 1]) {
-    // side -1: the garden half (rises towards +x); +1: the east half
-    for (let i = 0; i < n; i++) {
-      const s = (i + 0.5) * pitch;
-      const g = box(0.058, 0.024, len);
-      g.rotateZ(-side * ang);
-      slats.push({ geo: g, pos: [WING_RIDGE_X + side * (HALF_SPAN - s * Math.cos(ang)), EAVE_Y_IN + s * Math.sin(ang) - 0.02, (Z0 + Z1) / 2] });
-    }
-    const b = box(slope + 0.05, 0.01, len);
-    b.rotateZ(-side * ang);
-    backing.push({ geo: b, pos: [WING_RIDGE_X + side * HALF_SPAN * 0.5, EAVE_Y_IN + rise / 2 + 0.012, (Z0 + Z1) / 2] });
+  const n = Math.floor((X1 - X0) / pitch);
+  for (let i = 0; i < n; i++) {
+    slats.push({ geo: box(0.058, 0.024, len), pos: [X0 + (i + 0.5) * pitch, CEIL_Y + 0.012, (Z0 + Z1) / 2] });
   }
-  // wall plates: a clean line where the walls meet the lining
+  // dark acoustic backing between the slats
+  backing.push({ geo: box(X1 - X0, 0.01, len), pos: [(X0 + X1) / 2, CEIL_Y + 0.03, (Z0 + Z1) / 2] });
+  // a shadow-gap trim where the ceiling meets the walls
   const plate: Placed[] = [
-    { geo: box(0.06, 0.2, len), pos: [X1 - 0.03, EAVE_Y_IN - 0.08, (Z0 + Z1) / 2] },
-    { geo: box(0.06, 0.2, len), pos: [X0 + 0.03, EAVE_Y_IN - 0.08, (Z0 + Z1) / 2] },
+    { geo: box(0.06, 0.04, len), pos: [X1 - 0.03, CEIL_Y - 0.01, (Z0 + Z1) / 2] },
+    { geo: box(0.06, 0.04, len), pos: [X0 + 0.03, CEIL_Y - 0.01, (Z0 + Z1) / 2] },
   ];
-  const ridge: Placed[] = [{ geo: box(0.05, 0.012, len), pos: [WING_RIDGE_X, RIDGE_Y_IN - 0.035, (Z0 + Z1) / 2] }];
+  // a linear light slot down the middle of the room
+  const ridge: Placed[] = [{ geo: box(0.05, 0.012, len - 0.6), pos: [(X0 + X1) / 2, CEIL_Y - 0.004, (Z0 + Z1) / 2] }];
   return { slats, backing, plate, ridge };
 }
 
@@ -482,9 +471,9 @@ const PENDANT_X = (IS.x0 + IS.x1) / 2;
 const PENDANT_Y = TOP + 0.74; // bottom of the shade
 const LAMPS: Lamp[] = [
   ...PENDANT_Z.map((z) => ({ pos: [PENDANT_X, PENDANT_Y + 0.06, z] as V3, color: "#ffd6ae", power: 14, range: 3.6, group: "kitchen" as const })),
-  // bounce from the vault
-  { pos: [WING_RIDGE_X, 3.9, -11.6], color: "#fff0e2", power: 2.4, range: 7, group: "kitchen" },
-  { pos: [WING_RIDGE_X, 3.9, -6.6], color: "#fff0e2", power: 2.4, range: 7, group: "kitchen" },
+  // the light slot in the ceiling
+  { pos: [(X0 + X1) / 2, CEIL_Y - 0.1, -11.6], color: "#fff0e2", power: 3, range: 6, group: "kitchen" },
+  { pos: [(X0 + X1) / 2, CEIL_Y - 0.1, -6.6], color: "#fff0e2", power: 3, range: 6, group: "kitchen" },
 ];
 
 /* ---------------------------------------------------------------- materials */
@@ -833,7 +822,7 @@ function Props({ island }: { island: boolean }) {
 
   // the pendant model: shade rim at y 0.221, stem top at 1.173
   const rodTop = PENDANT_Y + (1.173 - 0.221);
-  const cableLen = Math.max(0.05, vaultY(PENDANT_X) - rodTop);
+  const cableLen = Math.max(0.05, ceilingY() - rodTop);
 
   return (
     <group>

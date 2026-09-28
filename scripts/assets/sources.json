@@ -12,9 +12,6 @@
     "japanese_cedar_planks": {
       "use": "Cedar cladding and soffits"
     },
-    "roof_slates_02": {
-      "use": "Roofing: natural slate"
-    },
     "wood_floor": {
       "use": "Floors: wide-plank oak (kitchen option, house interiors)"
     },
@@ -42,16 +39,13 @@
     "concrete_floor_02": {
       "use": "Concrete: steel footings, before-garden slab"
     },
-    "castle_wall_slates": {
-      "use": "Stone base: coursed slate veneer (house plinth walls, kitchen-wing piers)"
-    },
     "mud_forest": {
       "use": "Planting beds: dark mulched soil"
     }
   },
   "ambientcg_textures": {
     "Travertine009": {
-      "use": "Terrace pavers and pool coping"
+      "use": "Limestone cladding, terrace pavers, pool coping"
     },
     "Concrete034": {
       "use": "Polished concrete worktop, floor and splash"
@@ -65,9 +59,6 @@
     "Gravel022": {
       "use": "Gravel drive, margins and paths"
     },
-    "RoofingTiles012A": {
-      "use": "Roofing: concrete tile (greyscale, tinted per colour)"
-    },
     "Tiles107": {
       "use": "Pool lining; \"before\" kitchen tile splash"
     },
@@ -79,9 +70,6 @@
     },
     "Fabric061": {
       "use": "Rugs and boucl\u00e9 upholstery"
-    },
-    "Asphalt026C": {
-      "use": "Granule grain of the architectural and weathered shingles"
     },
     "Leather037": {
       "use": "Counter-stool seats"

@@ -4,9 +4,9 @@
  * schedule in the panel. Section masses are nominal catalogue values. This is a
  * demonstration schedule, not a structural design.
  */
-import { MAIN, MAIN_HALF, MAIN_RIDGE_Z, MAIN_TAN, WING, WING_RIDGE_X, WING_RIDGE_Y, WING_TAN, type Vec3 } from "./spec";
+import { BALCONY, MAIN, MAIN_ROOF, WING, WING_ROOF, type Vec3 } from "./spec";
 
-export type TrussType = "fink" | "howe" | "pratt";
+export type TrussType = "warren" | "pratt" | "howe";
 export type MemberKind = "plate" | "column" | "beam" | "chord" | "web" | "rafter" | "purlin" | "brace";
 export type Profile = "I" | "SHS" | "C" | "ROD" | "PLATE";
 
@@ -57,7 +57,7 @@ export const KIND_LABEL: Record<MemberKind, string> = {
   beam: "Beam",
   chord: "Truss chord",
   web: "Truss web",
-  rafter: "Portal rafter",
+  rafter: "Cantilever beam",
   purlin: "Purlin",
   brace: "Bracing",
 };
@@ -66,50 +66,41 @@ export const ERECTION_STEPS = [
   "Base plates & anchors",
   "Columns",
   "First-floor beams",
-  "Eave beams & ties",
+  "Roof edge beams",
   "Roof trusses",
-  "Portal rafters",
+  "Cantilevers & pavilion roof",
   "Purlins",
   "Bracing",
 ] as const;
 
 const COL_X = [MAIN.x0, -2, 2, MAIN.x1];
+const MID_Z = (MAIN.z0 + MAIN.z1) / 2;
 const TRUSS_X = [-6, -4, -2, 0, 2, 4, 6];
-// portal frames of the kitchen wing: clear of the sink window (z -12.3…-10.3) and the tall units
+/** parallel-chord roof trusses sit in the roof void: bottom chord at the wall head, 0.5 m deep */
+const TRUSS_D = 0.5;
+// frames of the kitchen pavilion: clear of the sink window (z -12.3…-10.3) and the tall units
 const WING_FRAME_Z = [MAIN.z0 - 0.35, -7.35, -9.9, WING.z0];
 
-function topChordY(z: number) {
-  return MAIN.eave + (MAIN_HALF - Math.abs(z - MAIN_RIDGE_Z)) * MAIN_TAN;
-}
-
-function trussWebs(type: TrussType): Array<[number, number, number, number]> {
-  // returns [zBottom|zTop pairs] as [z1, y1, z2, y2]
-  const e = MAIN.eave;
-  const h = MAIN_HALF;
+/** Web members of one truss spanning z0 → z1 at chord heights yb (bottom) and yt (top). */
+function trussWebs(type: TrussType, z0: number, z1: number, yb: number, yt: number): Array<[number, number, number, number]> {
+  const n = 8; // panels across the span
+  const step = (z1 - z0) / n;
   const webs: Array<[number, number, number, number]> = [];
-  if (type === "fink") {
-    const zb = h / 3;
-    const zt = h / 2;
-    for (const s of [-1, 1]) {
-      webs.push([s * zt, topChordY(s * zt), s * zb, e]);
-      webs.push([s * zb, e, 0, topChordY(0)]);
+  for (let i = 0; i < n; i++) {
+    const za = z0 + i * step;
+    const zb = za + step;
+    const left = i < n / 2; // diagonals mirror about mid-span
+    if (type === "warren") {
+      // zig-zag of equal diagonals, no verticals
+      if (i % 2 === 0) webs.push([za, yb, zb, yt]);
+      else webs.push([za, yt, zb, yb]);
+      continue;
     }
-    return webs;
-  }
-  const n = 3; // panels per half
-  const step = h / n;
-  // verticals
-  for (let i = 1; i < n; i++) {
-    for (const s of [-1, 1]) webs.push([s * (h - i * step), e, s * (h - i * step), topChordY(s * (h - i * step))]);
-  }
-  webs.push([0, e, 0, topChordY(0)]); // king post
-  for (let i = 1; i < n; i++) {
-    for (const s of [-1, 1]) {
-      const zo = s * (h - i * step); // outer panel point
-      const zi = s * (h - (i + 1) * step); // inner panel point
-      if (type === "pratt") webs.push([zo, topChordY(zo), zi, e]); // slopes down toward centre
-      else webs.push([zo, e, zi, topChordY(zi)]); // howe: slopes up toward centre
-    }
+    if (i > 0) webs.push([za, yb, za, yt]); // verticals at the panel points
+    // pratt: diagonals slope down toward mid-span (tension); howe: up toward mid-span (compression)
+    const down = type === "pratt" ? left : !left;
+    if (down) webs.push([za, yt, zb, yb]);
+    else webs.push([za, yb, zb, yt]);
   }
   return webs;
 }
@@ -122,88 +113,74 @@ export function buildFrame(truss: TrussType): Member[] {
     m.push({ id: `${kind.slice(0, 2).toUpperCase()}-${String(n).padStart(3, "0")}`, kind, section, a, b, group, label, roll });
   };
 
-  // --- main block columns (+ two internal at the centre line)
+  // --- main block columns (+ two internal on the centre line), full height
   const cols: Vec3[] = [];
   for (const x of COL_X) for (const z of [MAIN.z0, MAIN.z1]) cols.push([x, 0, z]);
-  cols.push([-2, 0, MAIN_RIDGE_Z], [2, 0, MAIN_RIDGE_Z]);
-  // wing portal columns
+  cols.push([-2, 0, MID_Z], [2, 0, MID_Z]);
+  // pavilion columns
   const wingCols: Vec3[] = [];
   for (const z of WING_FRAME_Z) for (const x of [WING.x0, WING.x1]) wingCols.push([x, 0, z]);
 
   for (const c of [...cols, ...wingCols]) add("plate", "PL300", [c[0], 0, c[2]], [c[0], 0.02, c[2]], 0, "Base plate");
-  cols.forEach((c, i) => add("column", "UC203", [c[0], 0.02, c[2]], [c[0], MAIN.eave, c[2]], 1, `Main column ${i + 1}`, c[2] === MAIN_RIDGE_Z ? Math.PI / 2 : 0));
-  wingCols.forEach((c, i) => add("column", "UC152", [c[0], 0.02, c[2]], [c[0], WING.eave, c[2]], 1, `Wing column ${i + 1}`, Math.PI / 2));
+  cols.forEach((c, i) => add("column", "UC203", [c[0], 0.02, c[2]], [c[0], MAIN.eave, c[2]], 1, `Main column ${i + 1}`, c[2] === MID_Z ? Math.PI / 2 : 0));
+  wingCols.forEach((c, i) => add("column", "UC152", [c[0], 0.02, c[2]], [c[0], WING.eave, c[2]], 1, `Pavilion column ${i + 1}`, Math.PI / 2));
 
-  // --- first floor beams
-  const y2 = MAIN.level2;
+  // --- first floor: edge beams, floor beams, secondaries
+  const y2 = MAIN.level2 - 0.15;
   for (const z of [MAIN.z0, MAIN.z1]) {
     for (let i = 0; i < COL_X.length - 1; i++) add("beam", "UB254", [COL_X[i], y2, z], [COL_X[i + 1], y2, z], 2, "Floor edge beam");
   }
   for (const x of COL_X) add("beam", "UB254", [x, y2, MAIN.z0], [x, y2, MAIN.z1], 2, "Floor beam", Math.PI / 2);
   for (const x of [-4, 0, 4]) add("beam", "UB203", [x, y2, MAIN.z0], [x, y2, MAIN.z1], 2, "Secondary floor beam", Math.PI / 2);
 
-  // --- eave beams + gable ties
+  // --- roof edge beams on the column heads
+  const yr = MAIN.eave;
   for (const z of [MAIN.z0, MAIN.z1]) {
-    for (let i = 0; i < COL_X.length - 1; i++) add("beam", "UB203", [COL_X[i], MAIN.eave, z], [COL_X[i + 1], MAIN.eave, z], 3, "Eave beam");
+    for (let i = 0; i < COL_X.length - 1; i++) add("beam", "UB203", [COL_X[i], yr, z], [COL_X[i + 1], yr, z], 3, "Roof edge beam");
   }
+  for (const x of [MAIN.x0, MAIN.x1]) add("beam", "UB203", [x, yr, MAIN.z0], [x, yr, MAIN.z1], 3, "Roof edge beam", Math.PI / 2);
   for (const x of [WING.x0, WING.x1]) {
-    for (let i = 0; i < WING_FRAME_Z.length - 1; i++) add("beam", "UB203", [x, WING.eave, WING_FRAME_Z[i]], [x, WING.eave, WING_FRAME_Z[i + 1]], 3, "Wing eave beam", Math.PI / 2);
+    for (let i = 0; i < WING_FRAME_Z.length - 1; i++) add("beam", "UB203", [x, WING.eave, WING_FRAME_Z[i]], [x, WING.eave, WING_FRAME_Z[i + 1]], 3, "Pavilion edge beam", Math.PI / 2);
   }
 
-  // --- roof trusses (main block)
-  const eaveZf = MAIN_RIDGE_Z + MAIN_HALF + MAIN.eaveOverhang;
-  const eaveZr = MAIN_RIDGE_Z - MAIN_HALF - MAIN.eaveOverhang;
-  const eaveY = MAIN.eave - MAIN.eaveOverhang * MAIN_TAN;
-  const apex: [number, number] = [MAIN_RIDGE_Z, topChordY(MAIN_RIDGE_Z)];
+  // --- parallel-chord roof trusses across the main block
+  const yb = MAIN.eave + 0.05;
+  const yt = yb + TRUSS_D;
   TRUSS_X.forEach((x, ti) => {
     const t = `Truss T${ti + 1}`;
-    add("chord", "SHS76", [x, eaveY, eaveZr], [x, apex[1], apex[0]], 4, `${t} · top chord`);
-    add("chord", "SHS76", [x, eaveY, eaveZf], [x, apex[1], apex[0]], 4, `${t} · top chord`);
-    add("chord", "SHS76", [x, MAIN.eave, MAIN.z0], [x, MAIN.eave, MAIN.z1], 4, `${t} · bottom chord`);
-    for (const [z1, yy1, z2, yy2] of trussWebs(truss)) add("web", "SHS50", [x, yy1, z1 + MAIN_RIDGE_Z], [x, yy2, z2 + MAIN_RIDGE_Z], 4, `${t} · web`);
+    add("chord", "SHS76", [x, yt, MAIN.z0], [x, yt, MAIN.z1], 4, `${t} · top chord`);
+    add("chord", "SHS76", [x, yb, MAIN.z0], [x, yb, MAIN.z1], 4, `${t} · bottom chord`);
+    for (const [z1, yy1, z2, yy2] of trussWebs(truss, MAIN.z0, MAIN.z1, yb, yt)) add("web", "SHS50", [x, yy1, z1], [x, yy2, z2], 4, `${t} · web`);
   });
 
-  // --- wing portal rafters
-  const wEaveY = WING.eave - WING.eaveOverhang * WING_TAN;
-  for (const z of WING_FRAME_Z) {
-    add("rafter", "UB203", [WING.x0 - WING.eaveOverhang, wEaveY, z], [WING_RIDGE_X, WING_RIDGE_Y, z], 5, "Portal rafter");
-    add("rafter", "UB203", [WING.x1 + WING.eaveOverhang, wEaveY, z], [WING_RIDGE_X, WING_RIDGE_Y, z], 5, "Portal rafter");
-  }
+  // --- cantilevers: the balcony slab and the roof overhangs, and the pavilion's flat roof beams
+  const yBal = MAIN.level2 - 0.15;
+  for (const z of [MAIN.z0, MID_Z, MAIN.z1]) add("rafter", "UB254", [MAIN.x0, yBal, z], [BALCONY.x0 + 0.1, yBal, z], 5, "Balcony cantilever");
+  for (const x of [MAIN.x0, -4, -2]) add("rafter", "UB254", [x, yBal, MAIN.z0], [x, yBal, BALCONY.z0 + 0.1], 5, "Balcony cantilever", Math.PI / 2);
+  for (const z of [MAIN.z0, MID_Z, MAIN.z1]) add("rafter", "UB203", [MAIN.x0, yt, z], [MAIN_ROOF.x0 + 0.1, yt, z], 5, "Roof overhang");
+  for (const x of [-6, -4, -2, 0, 2, 4, 6]) add("rafter", "UB203", [x, yt, MAIN.z0], [x, yt, MAIN_ROOF.z0 + 0.1], 5, "Roof overhang", Math.PI / 2);
+  for (const z of WING_FRAME_Z) add("rafter", "UB203", [WING_ROOF.x0 + 0.1, WING.eave + 0.12, z], [WING.x1, WING.eave + 0.12, z], 5, "Pavilion roof beam");
 
-  // --- purlins
-  const xa = MAIN.x0 - MAIN.rakeOverhang;
-  const xb = MAIN.x1 + MAIN.rakeOverhang;
-  const slope = MAIN_HALF + MAIN.eaveOverhang;
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 5; i++) {
-      const f = 0.06 + (i / 4) * 0.86; // along the slope, eave → ridge
-      const z = MAIN_RIDGE_Z + side * slope * (1 - f);
-      const y = eaveY + (apex[1] - eaveY) * f + 0.12;
-      add("purlin", "LC150", [xa, y, z], [xb, y, z], 6, "Roof purlin");
-    }
+  // --- purlins over the trusses (the roof deck spans between them), and over the pavilion beams
+  for (let i = 0; i < 6; i++) {
+    const z = MAIN.z0 + 0.4 + (i / 5) * (MAIN.z1 - MAIN.z0 - 0.8);
+    add("purlin", "LC150", [MAIN_ROOF.x0 + 0.1, yt + 0.12, z], [MAIN.x1, yt + 0.12, z], 6, "Roof purlin");
   }
-  const wz0 = WING.z0 - WING.rakeOverhang;
-  const wz1 = MAIN.z0 - 0.35;
-  for (const side of [-1, 1]) {
-    const edgeX = WING_RIDGE_X + side * (WING.x1 - WING_RIDGE_X + WING.eaveOverhang);
-    for (let i = 0; i < 4; i++) {
-      const f = 0.08 + (i / 3) * 0.82;
-      const x = edgeX + (WING_RIDGE_X - edgeX) * f;
-      const y = wEaveY + (WING_RIDGE_Y - wEaveY) * f + 0.12;
-      add("purlin", "LC150", [x, y, wz0], [x, y, wz1], 6, "Wing purlin");
-    }
+  for (let i = 0; i < 5; i++) {
+    const x = WING_ROOF.x0 + 0.3 + (i / 4) * (WING.x1 - WING_ROOF.x0 - 0.6);
+    add("purlin", "LC150", [x, WING.eave + 0.3, WING.z0], [x, WING.eave + 0.3, MAIN.z0 - 0.35], 6, "Pavilion purlin");
   }
 
   // --- bracing: X in the end bays of the long walls, both storeys
   for (const z of [MAIN.z0, MAIN.z1]) {
-    for (const [ya, yb] of [
-      [0.25, MAIN.level2],
-      [MAIN.level2, MAIN.eave],
+    for (const [ya, yb2] of [
+      [0.25, y2],
+      [y2, MAIN.eave],
     ]) {
-      add("brace", "ROD16", [COL_X[0], ya, z], [COL_X[1], yb, z], 7, "Wall bracing");
-      add("brace", "ROD16", [COL_X[1], ya, z], [COL_X[0], yb, z], 7, "Wall bracing");
-      add("brace", "ROD16", [COL_X[2], ya, z], [COL_X[3], yb, z], 7, "Wall bracing");
-      add("brace", "ROD16", [COL_X[3], ya, z], [COL_X[2], yb, z], 7, "Wall bracing");
+      add("brace", "ROD16", [COL_X[0], ya, z], [COL_X[1], yb2, z], 7, "Wall bracing");
+      add("brace", "ROD16", [COL_X[1], ya, z], [COL_X[0], yb2, z], 7, "Wall bracing");
+      add("brace", "ROD16", [COL_X[2], ya, z], [COL_X[3], yb2, z], 7, "Wall bracing");
+      add("brace", "ROD16", [COL_X[3], ya, z], [COL_X[2], yb2, z], 7, "Wall bracing");
     }
   }
   return m;

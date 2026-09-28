@@ -41,3 +41,39 @@ Legend: **KEEP** — good enough, protect it. **IMPROVE** — right approach, ex
   per-tier sizes. GLBs use meshopt.
 - Individually modelled leaves: every Poly Haven tree is 1–7 million triangles. The card trees
   keep the scanned branch structure and leaf imagery at a fraction of the cost.
+
+## What this pass changed
+
+| Area | Before | Now |
+| --- | --- | --- |
+| Trees | Impostors everywhere (128 px per view; 64 px on phones). | Real 3D trees near the camera: the scan's own trunk and limbs (meshopt-simplified) and one card per leaf fitted to the leaf's UVs. The fir scan models single needles, so it is re-carded with sprigs from its own atlas (needles binned to voxels, plane by PCA, branch pointing away from the trunk). A sparser 3D LOD for the middle distance, impostors beyond and for the woodland ring. Level of detail chosen per plant, nearest first, every frame. |
+| Shrubs | Brown twig impostors. | Searsia shrubs as 3D card models, fuller than the open scan (clipped garden specimens). |
+| Beds | House and terrace on bare lawn. | Mulched beds in a steel edge with instanced fern and grass clumps: ferns along the west gable, a low bed between pool and terrace, the garden's west edge, the back boundary. |
+| Stone base | 2.4 × 1.2 m pale panels (read as tiles). | Coursed slate veneer from a laid-wall scan, the one tell-tale pale block patched out so the 2.5 m repeat does not show. |
+| Dusk light | Two round wall-light blobs; flat interiors. | Up/down wall lights as narrow beams grazing the stone (V scallops); soffit downlights over the glass wall and terrace; tree uplights; pendants that glow with the kitchen lamps; sheer curtains upstairs. |
+| Pool | Tile plane under a tinted sheet. | Noise ripples, depth absorption (red lost first), moving caustics by day, a turquoise glow after dark, planar reflection on desktop. |
+| Phones | — | Own tree budget on every tier; the 3D trees swap in after the reveal (the arrival loads on impostors); fewer ground-cover clumps; the lowest tier never draws full-detail trees or ground cover. Lamp uniforms packed to fit WebGL2's guaranteed fragment budget. |
+
+Checked by rendering the arrival shot (desktop 1440 × 900, phone 390 × 844) after each
+change and by close-ups with the interface hidden; the shots that exposed problems (fir cards
+as planks, a bench that was really a gravel strip and two bollards, reeds across the phone
+hero) led directly to the fixes above.
+
+## Pass 3b — the glass house
+
+The owner compared the phone hero with a reference photograph (a modern two-storey glass house
+at blue hour, lit from inside, reflected in a pool) and asked for that, not a better barn. The
+architecture was rebuilt; the product around it was kept.
+
+| What the reference has | What the barn had | Now |
+| --- | --- | --- |
+| Glass floor to ceiling on both floors | Punched windows in cedar and slate | Sliding glass walls on the garden and west fronts of both floors; limestone only at the corners and end walls |
+| Thin flat roof slabs, deep overhangs, lit soffits | A pitched metal roof | A 0.6 m roof slab reaching 2 m past the glass, a cantilevered balcony slab with a frameless glass rail, a lit canopy on the kitchen pavilion; downlights in every soffit |
+| The rooms as the light source | Dim rooms behind small windows | Furnished living, dining and suite behind the glass, twelve warm lamps, recessed ceiling lights visible through the glazing |
+| Calm water reflecting the house | Choppy cyan water | Calmer surface, stronger mirror, deeper teal body, warm underwater lights in the far walls |
+| A clean foreground and an open sky | Reeds and a wall of firs | The pool-side bed removed, the east fir edge and the woodland behind the house thinned |
+
+Knock-on changes, so every scenario still works on the new house: flat-roof systems for the
+roofer (single-ply membrane, standing seam, sedum green roof, gravel ballast), solar rows on
+tilted racks, a steel frame with parallel-chord roof trusses and balcony cantilevers, the air
+handler and ducts in the roof void, a flat slatted oak ceiling in the kitchen.

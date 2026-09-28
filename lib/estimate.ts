@@ -92,7 +92,7 @@ export function estimateFor(id: IndustryId, s: DemoState, units: UnitSystem): Es
       return {
         low,
         high,
-        basis: `Tear-off, underlayment, ${mat.label.toLowerCase()}, flashing`,
+        basis: `Strip-out, insulation check, ${mat.label.toLowerCase()}, edges and drains`,
         spec: [
           ["Roof", `${mat.label} · ${color.label}`],
           ["Roof area", `${area(ROOF_AREA_M2, units)}${units === "imperial" ? ` · ${roofSquares(ROOF_AREA_M2).toFixed(1)} squares` : ""}`],

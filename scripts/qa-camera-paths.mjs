@@ -71,13 +71,13 @@ for (const [a, b] of pairs) {
       for (let p = o; p; p = p.parent) if (!p.visible) return false;
       return true;
     };
-    // walls: every visible opaque mesh except ground, sky, water and plants (glass is transparent)
+    // walls: every visible opaque mesh except ground, sky, water and plants of any LOD (glass is transparent)
     const solids = [];
     scene.traverse((o) => {
       if (!(o.isMesh || o.isInstancedMesh) || !shown(o)) return;
       const m = Array.isArray(o.material) ? o.material[0] : o.material;
       if (!m || m.transparent || m.depthWrite === false) return;
-      if (/sky|dome|ground|lawn|meadow|terrain|plants|water/i.test(`${o.name} ${o.parent?.name ?? ""} ${m.name}`)) return;
+      if (/sky|dome|ground|lawn|meadow|terrain|plants|trees:|cover:|water/i.test(`${o.name} ${o.parent?.name ?? ""} ${m.name}`)) return;
       solids.push(o);
     });
     const ray = new THREE.Raycaster();
@@ -103,8 +103,11 @@ for (const [a, b] of pairs) {
       const id = o.name.slice(7);
       const [kh, k0] = shape(id);
       const bs = o.geometry.boundingSphere;
-      for (let k = 0; k < o.count; k++) {
-        o.getMatrixAt(k, m4);
+      // all placements, whichever LOD currently draws them (3D near, impostor far)
+      const all = o.userData.placements;
+      for (let k = 0; k < (all ? all.length : o.count); k++) {
+        if (all) m4.copy(all[k]);
+        else o.getMatrixAt(k, m4);
         m4.decompose(tp, tq, ts);
         const H = 2 * bs.center.y * ts.x;
         if (H < 1.2) continue;

@@ -16,37 +16,40 @@ import { channels, OUTPUT_TAIL, U } from "./shared";
  * The house's air system as an engineering drawing come to life: the building turns to glass,
  * the ducts are sheet metal seen in x-ray, and the air itself moves through them — cool blue
  * or warm amber, restrained — out of every register. The outdoor unit (a CC0 scan) and the
- * attic air handler are solid equipment. The customer's problem decides what is highlighted.
+ * slim ducted air handler in the roof void are solid equipment. The customer's problem decides what is highlighted.
  */
 
 type P3 = [number, number, number];
 
-const AH: P3 = [-0.6, MAIN.eave + 0.34, 0.9];
+/** slim ducted air handler, in the roof void between the upper ceiling and the roof deck */
+const AH: P3 = [-0.6, MAIN.eave + 0.25, 0.9];
 const OU: P3 = [WING.x1 + 0.95, 0.5, -6.9];
-const TRUNK_Y = MAIN.eave + 0.28;
-const GF_Y = 2.6;
+const TRUNK_Y = MAIN.eave + 0.2;
+const CEIL2 = MAIN.ceil2;
+const GF_Y = MAIN.ceil1 - 0.15;
+const KIT_Y = FLOOR_Y + 3.27;
 
 /** Duct runs as polylines, in the direction the air moves. */
 const SUPPLY: { pts: P3[]; r: number; zone: "upstairs" | "main" | "kitchen" }[] = [
   { pts: [[AH[0] + 0.7, TRUNK_Y, 0.9], [2.6, TRUNK_Y, 0.2], [4.8, TRUNK_Y, -0.3]], r: 0.17, zone: "upstairs" },
   { pts: [[AH[0] - 0.7, TRUNK_Y, 0.9], [-2.8, TRUNK_Y, 0.2], [-4.9, TRUNK_Y, -0.3]], r: 0.17, zone: "upstairs" },
-  { pts: [[-4.2, TRUNK_Y, -0.2], [-4.2, TRUNK_Y + 0.05, 1.0], [-4.1, MAIN.eave + 0.02, 2.0]], r: 0.085, zone: "upstairs" },
-  { pts: [[0.2, TRUNK_Y, 0.4], [0.2, TRUNK_Y + 0.05, 1.3], [0.2, MAIN.eave + 0.02, 2.2]], r: 0.085, zone: "upstairs" },
-  { pts: [[4.1, TRUNK_Y, -0.2], [4.1, TRUNK_Y + 0.05, 1.0], [4.0, MAIN.eave + 0.02, 2.0]], r: 0.085, zone: "upstairs" },
-  { pts: [[3.0, TRUNK_Y, -0.1], [3.0, TRUNK_Y, -1.2], [2.9, MAIN.eave + 0.02, -2.3]], r: 0.085, zone: "upstairs" },
+  { pts: [[-4.2, TRUNK_Y, -0.2], [-4.2, TRUNK_Y + 0.05, 1.0], [-4.1, CEIL2 + 0.02, 2.0]], r: 0.085, zone: "upstairs" },
+  { pts: [[0.2, TRUNK_Y, 0.4], [0.2, TRUNK_Y + 0.05, 1.3], [0.2, CEIL2 + 0.02, 2.2]], r: 0.085, zone: "upstairs" },
+  { pts: [[4.1, TRUNK_Y, -0.2], [4.1, TRUNK_Y + 0.05, 1.0], [4.0, CEIL2 + 0.02, 2.0]], r: 0.085, zone: "upstairs" },
+  { pts: [[3.0, TRUNK_Y, -0.1], [3.0, TRUNK_Y, -1.2], [2.9, CEIL2 + 0.02, -2.3]], r: 0.085, zone: "upstairs" },
   // riser to the main floor
   { pts: [[2.2, TRUNK_Y, 0.0], [2.2, TRUNK_Y - 0.2, -2.9], [2.2, GF_Y + 0.4, -3.2], [2.2, GF_Y, -3.2]], r: 0.14, zone: "main" },
   { pts: [[2.2, GF_Y, -3.2], [-1.0, GF_Y, -3.2], [-4.6, GF_Y, -3.2]], r: 0.15, zone: "main" },
-  { pts: [[-4.2, GF_Y, -3.1], [-4.2, GF_Y + 0.08, -1.0], [-4.2, 2.74, 1.4]], r: 0.08, zone: "main" },
-  { pts: [[-1.0, GF_Y, -3.1], [-1.0, GF_Y + 0.08, -0.4], [-1.0, 2.74, 2.0]], r: 0.08, zone: "main" },
-  { pts: [[2.2, GF_Y, -3.1], [3.4, GF_Y + 0.08, -0.4], [3.6, 2.74, 2.0]], r: 0.08, zone: "main" },
+  { pts: [[-4.2, GF_Y, -3.1], [-4.2, GF_Y + 0.08, -1.0], [-4.2, MAIN.ceil1 - 0.02, 1.4]], r: 0.08, zone: "main" },
+  { pts: [[-1.0, GF_Y, -3.1], [-1.0, GF_Y + 0.08, -0.4], [-1.0, MAIN.ceil1 - 0.02, 2.0]], r: 0.08, zone: "main" },
+  { pts: [[2.2, GF_Y, -3.1], [3.4, GF_Y + 0.08, -0.4], [3.6, MAIN.ceil1 - 0.02, 2.0]], r: 0.08, zone: "main" },
   // into the kitchen wing
-  { pts: [[2.2, GF_Y, -3.2], [3.3, GF_Y + 0.3, -4.4], [3.3, 3.05, -6.0], [3.3, 3.05, -12.6]], r: 0.12, zone: "kitchen" },
+  { pts: [[2.2, GF_Y, -3.2], [3.3, GF_Y + 0.3, -4.4], [3.3, KIT_Y + 0.12, -6.0], [3.3, KIT_Y + 0.12, -12.6]], r: 0.1, zone: "kitchen" },
 ];
 
 const RETURN: P3[][] = [
-  [[-1.8, MAIN.eave + 0.02, -2.4], [-1.8, TRUNK_Y + 0.25, -1.4], [-1.4, TRUNK_Y + 0.3, 0.3], [AH[0] - 0.75, AH[1], AH[2]]],
-  [[-3.1, FLOOR_Y + 0.45, -3.55], [-3.1, 2.4, -3.5], [-3.1, MAIN.level2 + 0.6, -3.45], [-2.6, TRUNK_Y + 0.35, -1.8], [AH[0] - 0.75, AH[1] - 0.1, AH[2] - 0.2]],
+  [[-1.8, CEIL2 + 0.02, -2.4], [-1.8, TRUNK_Y + 0.12, -1.4], [-1.4, TRUNK_Y + 0.3, 0.3], [AH[0] - 0.75, AH[1], AH[2]]],
+  [[-3.1, FLOOR_Y + 0.45, -3.55], [-3.1, 2.4, -3.5], [-3.1, MAIN.level2 + 0.6, -3.45], [-2.6, TRUNK_Y + 0.12, -1.8], [AH[0] - 0.75, AH[1] - 0.1, AH[2] - 0.2]],
 ];
 
 const LINESET: P3[] = [
@@ -61,16 +64,16 @@ const LINESET: P3[] = [
 
 /** Ceiling registers: [position, zone] */
 const REGISTERS: [P3, "upstairs" | "main" | "kitchen"][] = [
-  [[-4.1, MAIN.eave - 0.01, 2.0], "upstairs"],
-  [[0.2, MAIN.eave - 0.01, 2.2], "upstairs"],
-  [[4.0, MAIN.eave - 0.01, 2.0], "upstairs"],
-  [[2.9, MAIN.eave - 0.01, -2.3], "upstairs"],
-  [[-4.2, 2.76, 1.4], "main"],
-  [[-1.0, 2.76, 2.0], "main"],
-  [[3.6, 2.76, 2.0], "main"],
-  [[3.3, 2.98, -7.2], "kitchen"],
-  [[3.3, 2.98, -10.4], "kitchen"],
-  [[3.3, 2.98, -12.4], "kitchen"],
+  [[-4.1, CEIL2 - 0.01, 2.0], "upstairs"],
+  [[0.2, CEIL2 - 0.01, 2.2], "upstairs"],
+  [[4.0, CEIL2 - 0.01, 2.0], "upstairs"],
+  [[2.9, CEIL2 - 0.01, -2.3], "upstairs"],
+  [[-4.2, MAIN.ceil1 - 0.01, 1.4], "main"],
+  [[-1.0, MAIN.ceil1 - 0.01, 2.0], "main"],
+  [[3.6, MAIN.ceil1 - 0.01, 2.0], "main"],
+  [[3.3, KIT_Y - 0.01, -7.2], "kitchen"],
+  [[3.3, KIT_Y - 0.01, -10.4], "kitchen"],
+  [[3.3, KIT_Y - 0.01, -12.4], "kitchen"],
 ];
 
 function curveOf(pts: P3[]) {
@@ -351,15 +354,14 @@ export function Hvac() {
         ...[-0.09, -0.03, 0.03, 0.09].map((dz) => ({ geo: box(0.3, 0.012, 0.012), pos: [p[0], p[1] - 0.016, p[2] + dz] as P3 })),
       ]),
     );
-    // attic air handler: cabinet, access panels, return plenum, filter rack
+    // slim ducted air handler: cabinet, access panels, return plenum, filter rack
     const ah: THREE.BufferGeometry = merge([
-      { geo: box(1.5, 0.66, 0.76), pos: AH },
-      { geo: box(0.3, 0.6, 0.7), pos: [AH[0] - 0.9, AH[1] - 0.02, AH[2]] },
-      { geo: box(0.7, 0.18, 0.5), pos: [AH[0] + 0.25, AH[1] + 0.42, AH[2]] },
+      { geo: box(1.5, 0.38, 0.76), pos: AH },
+      { geo: box(0.3, 0.36, 0.7), pos: [AH[0] - 0.9, AH[1] - 0.01, AH[2]] },
     ]);
     const panels = merge([
-      { geo: box(0.64, 0.54, 0.012), pos: [AH[0] - 0.33, AH[1], AH[2] + 0.386] },
-      { geo: box(0.64, 0.54, 0.012), pos: [AH[0] + 0.39, AH[1], AH[2] + 0.386] },
+      { geo: box(0.64, 0.3, 0.012), pos: [AH[0] - 0.33, AH[1], AH[2] + 0.386] },
+      { geo: box(0.64, 0.3, 0.012), pos: [AH[0] + 0.39, AH[1], AH[2] + 0.386] },
     ]);
     const pad = merge([{ geo: box(1.35, 0.1, 1.2), pos: [OU[0], 0.05, OU[2]] }]);
     return { trunks, branches, ret, lines, regs, ah, panels, pad };
@@ -408,10 +410,10 @@ export function Hvac() {
 
   const zoneBox = (z: "upstairs" | "main" | "kitchen"): { pos: P3; size: P3 } =>
     z === "upstairs"
-      ? { pos: [0, (MAIN.level2 + MAIN.eave) / 2 + 0.05, 0], size: [11.3, MAIN.eave - MAIN.level2 - 0.2, 7.3] }
+      ? { pos: [0, (MAIN.level2 + CEIL2) / 2 + 0.05, 0], size: [11.3, CEIL2 - MAIN.level2 - 0.2, 7.3] }
       : z === "main"
         ? { pos: [0, (FLOOR_Y + MAIN.level2) / 2 - 0.1, 0], size: [11.3, MAIN.level2 - FLOOR_Y - 0.4, 7.3] }
-        : { pos: [(WING.x0 + WING.x1) / 2, (FLOOR_Y + WING.eave) / 2, (WING.z0 + WING.z1) / 2], size: [6.3, WING.eave - FLOOR_Y - 0.2, 9.3] };
+        : { pos: [(WING.x0 + WING.x1) / 2, (FLOOR_Y + KIT_Y) / 2, (WING.z0 + WING.z1) / 2], size: [6.3, KIT_Y - FLOOR_Y - 0.2, 9.3] };
 
   const callout = (key: string, at: P3, k: string, v: string, tone?: "warm" | "cool") => (
     <Html key={key} position={at} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
@@ -438,7 +440,7 @@ export function Hvac() {
         <mesh geometry={geo.ah} material={mats.ah} castShadow />
         <mesh geometry={geo.panels} material={mats.panel} />
         <mesh material={mats.filter} position={[AH[0] - 1.06, AH[1] - 0.02, AH[2]]}>
-          <boxGeometry args={[0.03, 0.56, 0.66]} />
+          <boxGeometry args={[0.03, 0.34, 0.66]} />
         </mesh>
         <mesh material={mats.thermo} position={[-1.95, FLOOR_Y + 1.45, MAIN.z0 + 0.3]}>
           <boxGeometry args={[0.12, 0.12, 0.025]} />
@@ -455,10 +457,10 @@ export function Hvac() {
             </mesh>
           );
         })}
-        {show && warmUp && callout("zone", [0.2, MAIN.eave - 0.3, 2.4], "Upstairs · 4° over set point", "Weak supply to the bedrooms", "warm")}
-        {show && focusAH && callout("ah", [AH[0] + 0.2, AH[1] + 0.5, AH[2]], "Air handler · attic", issue === "maintenance" ? "Filter and coil due" : issue === "noise" ? "Blower and mounts" : "Replace with the outdoor unit", issue === "noise" ? "warm" : undefined)}
+        {show && warmUp && callout("zone", [0.2, CEIL2 - 0.3, 2.4], "Upstairs · 4° over set point", "Weak supply to the bedrooms", "warm")}
+        {show && focusAH && callout("ah", [AH[0] + 0.2, AH[1] + 0.5, AH[2]], "Air handler · roof void", issue === "maintenance" ? "Filter and coil due" : issue === "noise" ? "Blower and mounts" : "Replace with the outdoor unit", issue === "noise" ? "warm" : undefined)}
         {show && issue === "cooling" && callout("lines", [MAIN.x1 + 0.12, 3.6, MAIN.z0 + 0.4], "Refrigerant lines", "Charge and insulation", "cool")}
-        {show && !focusOU && !warmUp && !focusAH && callout("air", [-4.1, MAIN.eave - 0.5, 2.0], heat ? "Supply air · heating" : "Supply air · cooling", heat ? "Warm air to every room" : "Cool air to every room", heat ? "warm" : "cool")}
+        {show && !focusOU && !warmUp && !focusAH && callout("air", [-4.1, CEIL2 - 0.5, 2.0], heat ? "Supply air · heating" : "Supply air · cooling", heat ? "Warm air to every room" : "Cool air to every room", heat ? "warm" : "cool")}
       </group>
       {show && focusOU && callout("ou", [OU[0], 1.25, OU[2]], "Outdoor unit", issue === "replace" ? "Due for replacement" : issue === "maintenance" ? "Coil cleaning" : "Coil, capacitor, contactor", issue === "replace" ? "warm" : "cool")}
     </group>

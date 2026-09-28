@@ -9,134 +9,98 @@
 export const WALL = 0.32;
 export const FLOOR_Y = 0.15; // finished floor above ground
 
+/**
+ * The house: a two-storey glass volume under a thin flat roof slab, and a single-storey glass
+ * pavilion (the kitchen) off its garden side. Floor-to-ceiling glazing, pale limestone where a
+ * wall is solid, dark slab edges, deep lit soffits. `eave` is the top of the walls — the
+ * underside of the roof slab.
+ */
 export const MAIN = {
   x0: -6,
   x1: 6,
   z0: -4,
   z1: 4,
-  eave: 5.9,
-  level2: 3.05,
-  pitchDeg: 35,
-  eaveOverhang: 0.42,
-  rakeOverhang: 0.24,
+  level2: 3.3, // first floor, finished
+  ceil1: 3.0, // ground-floor ceiling: underside of the first-floor slab
+  ceil2: 5.9, // first-floor ceiling (the roof void is above it)
+  eave: 6.2,
 } as const;
+
+/** Roof slab over the main volume; its west and garden edges reach out over the balcony. */
+export const MAIN_ROOF = { t: 0.6, x0: -8.0, x1: 6.8, z0: -5.8, z1: 4.8 } as const;
+export const MAIN_TOP = MAIN.eave + MAIN_ROOF.t;
+
+/**
+ * First-floor balcony: the slab cantilevers 1.8 m west and 1.6 m over the terrace (as far as the
+ * pavilion), edged in frameless glass.
+ */
+export const BALCONY = { x0: -7.8, z0: -5.6, xs: -1.0, t: 0.3, rail: 1.05 } as const;
 
 export const WING = {
   x0: -1,
   x1: 6,
   z0: -14,
   z1: -4,
-  eave: 3.4,
-  pitchDeg: 25,
-  eaveOverhang: 0.4,
-  rakeOverhang: 0.24,
+  eave: 3.5,
 } as const;
 
-const rad = (d: number) => (d * Math.PI) / 180;
-
-export const MAIN_HALF = (MAIN.z1 - MAIN.z0) / 2; // 4
-export const MAIN_TAN = Math.tan(rad(MAIN.pitchDeg));
-export const MAIN_RIDGE_Y = MAIN.eave + MAIN_HALF * MAIN_TAN;
-export const MAIN_RIDGE_Z = (MAIN.z0 + MAIN.z1) / 2;
-
-export const WING_HALF = (WING.x1 - WING.x0) / 2; // 3.5
-export const WING_TAN = Math.tan(rad(WING.pitchDeg));
-export const WING_RIDGE_Y = WING.eave + WING_HALF * WING_TAN;
-export const WING_RIDGE_X = (WING.x0 + WING.x1) / 2;
+/** The pavilion's roof slab, with a deep lit canopy over the terrace on the garden side. */
+export const WING_ROOF = { t: 0.45, x0: -2.4, x1: 6.5, z0: -14.8, z1: -4 } as const;
+export const WING_TOP = WING.eave + WING_ROOF.t;
 
 export type Vec3 = [number, number, number];
 
-/** A roof plane expressed as origin + two axes. u runs along the eave, v runs up-slope. */
+/**
+ * A roof section: a flat rectangle at the top of its slab, as origin + two axes (u along x, v
+ * toward the garden), so marks, panels and outlines are placed the same way on any roof.
+ */
 export interface RoofPlane {
   id: RoofSectionId;
   label: string;
   short: string;
-  origin: Vec3; // eave edge, start of u
-  u: Vec3; // unit vector along eave
-  v: Vec3; // unit vector up the slope
+  origin: Vec3; // street-side west corner of the roof surface
+  u: Vec3;
+  v: Vec3;
   normal: Vec3;
   width: number; // along u
-  length: number; // along v (eave edge → ridge)
-  /** v distance from eave edge to the wall line (overhang measured on slope) */
-  overhangV: number;
+  length: number; // along v
+  /** slab thickness under the surface */
+  thickness: number;
   area: number;
-  /** usable rectangle for panels (u0,u1,v0,v1) after setbacks */
+  /** usable rectangle for panels (u0,u1,v0,v1) after setbacks from the edges */
   usable: [number, number, number, number];
 }
 
-export type RoofSectionId = "main-front" | "main-rear" | "wing-garden" | "wing-side";
+export type RoofSectionId = "main-roof" | "wing-roof";
 
-function mainPlane(side: 1 | -1): RoofPlane {
-  // side 1 = front (+Z), -1 = rear
-  const slopeLen = (MAIN_HALF + MAIN.eaveOverhang) / Math.cos(rad(MAIN.pitchDeg));
-  const width = MAIN.x1 - MAIN.x0 + MAIN.rakeOverhang * 2;
-  const eaveY = MAIN.eave - MAIN.eaveOverhang * MAIN_TAN;
-  const eaveZ = MAIN_RIDGE_Z + side * (MAIN_HALF + MAIN.eaveOverhang);
-  const c = Math.cos(rad(MAIN.pitchDeg));
-  const s = Math.sin(rad(MAIN.pitchDeg));
-  const v: Vec3 = [0, s, -side * c];
-  const normal: Vec3 = [0, c, side * s];
-  const u: Vec3 = side === 1 ? [1, 0, 0] : [-1, 0, 0];
-  const origin: Vec3 = side === 1 ? [MAIN.x0 - MAIN.rakeOverhang, eaveY, eaveZ] : [MAIN.x1 + MAIN.rakeOverhang, eaveY, eaveZ];
-  const overhangV = MAIN.eaveOverhang / c;
-  const setback = 0.5;
+function flatRoof(id: RoofSectionId, label: string, short: string, r: { x0: number; x1: number; z0: number; z1: number; t: number }, top: number, setback: number): RoofPlane {
+  const width = r.x1 - r.x0;
+  const length = r.z1 - r.z0;
   return {
-    id: side === 1 ? "main-front" : "main-rear",
-    label: side === 1 ? "Main roof · front slope" : "Main roof · rear slope",
-    short: side === 1 ? "Front slope" : "Rear slope",
-    origin,
-    u,
-    v,
-    normal,
+    id,
+    label,
+    short,
+    origin: [r.x0, top, r.z1],
+    u: [1, 0, 0],
+    v: [0, 0, -1],
+    normal: [0, 1, 0],
     width,
-    length: slopeLen,
-    overhangV,
-    area: width * slopeLen,
-    usable: [MAIN.rakeOverhang + setback, width - MAIN.rakeOverhang - setback, overhangV + 0.3, slopeLen - setback],
+    length,
+    thickness: r.t,
+    area: width * length,
+    usable: [setback, width - setback, setback, length - setback],
   };
 }
 
-function wingPlane(side: 1 | -1): RoofPlane {
-  // side -1 = garden (-X), 1 = side (+X)
-  const slopeLen = (WING_HALF + WING.eaveOverhang) / Math.cos(rad(WING.pitchDeg));
-  const z0 = WING.z0 - WING.rakeOverhang;
-  const z1 = WING.z1; // dies into the main wall
-  const width = z1 - z0;
-  const eaveY = WING.eave - WING.eaveOverhang * WING_TAN;
-  const eaveX = WING_RIDGE_X + side * (WING_HALF + WING.eaveOverhang);
-  const c = Math.cos(rad(WING.pitchDeg));
-  const s = Math.sin(rad(WING.pitchDeg));
-  const v: Vec3 = [-side * c, s, 0];
-  const normal: Vec3 = [side * s, c, 0];
-  const u: Vec3 = side === -1 ? [0, 0, 1] : [0, 0, -1];
-  const origin: Vec3 = side === -1 ? [eaveX, eaveY, z0] : [eaveX, eaveY, z1];
-  const overhangV = WING.eaveOverhang / c;
-  const setback = 0.5;
-  const uStart = side === -1 ? WING.rakeOverhang + setback : setback + 0.3;
-  const uEnd = side === -1 ? width - setback - 0.3 : width - WING.rakeOverhang - setback;
-  return {
-    id: side === -1 ? "wing-garden" : "wing-side",
-    label: side === -1 ? "Kitchen wing · garden slope" : "Kitchen wing · side slope",
-    short: side === -1 ? "Wing, garden side" : "Wing, street side",
-    origin,
-    u,
-    v,
-    normal,
-    width,
-    length: slopeLen,
-    overhangV,
-    area: width * slopeLen,
-    usable: [uStart, uEnd, overhangV + 0.3, slopeLen - setback],
-  };
-}
-
-export const ROOF_PLANES: RoofPlane[] = [mainPlane(1), mainPlane(-1), wingPlane(-1), wingPlane(1)];
+export const ROOF_PLANES: RoofPlane[] = [
+  flatRoof("main-roof", "Main roof · upper level", "Upper roof", MAIN_ROOF, MAIN_TOP, 1.2),
+  flatRoof("wing-roof", "Kitchen pavilion roof", "Pavilion roof", WING_ROOF, WING_TOP, 1.0),
+];
 export const ROOF_PLANE_BY_ID = Object.fromEntries(ROOF_PLANES.map((p) => [p.id, p])) as Record<RoofSectionId, RoofPlane>;
 
 export const ROOF_AREA_M2 = ROOF_PLANES.reduce((a, p) => a + p.area, 0);
-export const RIDGE_LENGTH_M = MAIN.x1 - MAIN.x0 + MAIN.rakeOverhang * 2 + (WING.z1 - WING.z0 + WING.rakeOverhang);
-export const EAVE_LENGTH_M = 2 * (MAIN.x1 - MAIN.x0 + MAIN.rakeOverhang * 2) + 2 * (WING.z1 - WING.z0 + WING.rakeOverhang);
-export const FLASHING_LENGTH_M = 2 * ROOF_PLANE_BY_ID["wing-garden"].length;
+/** roof edges: coping and edge trim, all round both slabs */
+export const ROOF_EDGE_M = ROOF_PLANES.reduce((a, p) => a + 2 * (p.width + p.length), 0);
 
 export function planePoint(p: RoofPlane, u: number, v: number, lift = 0): Vec3 {
   return [
@@ -148,40 +112,39 @@ export function planePoint(p: RoofPlane, u: number, v: number, lift = 0): Vec3 {
 
 /* ------------------------------------------------------------------ solar */
 
-export const PANEL = { w: 1.134, h: 1.722, gap: 0.025, watts: 410 } as const;
+/** Module; on the flat roof it sits landscape on a low rack, tilted to the sun (+Z). */
+export const PANEL = { w: 1.134, h: 1.722, gap: 0.025, watts: 410, tiltDeg: 10 } as const;
+/** row to row, front edge to front edge: the panel's footprint plus clearance for winter shade */
+const ROW_PITCH = PANEL.w * Math.cos((PANEL.tiltDeg * Math.PI) / 180) + 0.7;
 
 export interface PanelSlot {
   plane: RoofSectionId;
   u: number; // centre
   v: number;
-  portrait: boolean;
   order: number;
 }
 
-function layoutPlane(p: RoofPlane, portrait: boolean): PanelSlot[] {
+function layoutRows(p: RoofPlane): PanelSlot[] {
   const [u0, u1, v0, v1] = p.usable;
-  const pw = portrait ? PANEL.w : PANEL.h; // along u
-  const ph = portrait ? PANEL.h : PANEL.w; // along v
-  const cols = Math.floor((u1 - u0 + PANEL.gap) / (pw + PANEL.gap));
-  const rows = Math.floor((v1 - v0 + PANEL.gap) / (ph + PANEL.gap));
-  const usedU = cols * pw + (cols - 1) * PANEL.gap;
-  const usedV = rows * ph + (rows - 1) * PANEL.gap;
-  const startU = u0 + (u1 - u0 - usedU) / 2 + pw / 2;
-  const startV = v0 + (v1 - v0 - usedV) / 2 + ph / 2;
+  const along = PANEL.h; // landscape: the long side runs along the row
+  const cols = Math.floor((u1 - u0 + PANEL.gap) / (along + PANEL.gap));
+  const rows = Math.floor((v1 - v0 - PANEL.w) / ROW_PITCH) + 1;
+  const usedU = cols * along + (cols - 1) * PANEL.gap;
+  const usedV = (rows - 1) * ROW_PITCH + PANEL.w;
+  const startU = u0 + (u1 - u0 - usedU) / 2 + along / 2;
+  const startV = v0 + (v1 - v0 - usedV) / 2 + PANEL.w / 2;
   const slots: PanelSlot[] = [];
   for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      slots.push({ plane: p.id, u: startU + c * (pw + PANEL.gap), v: startV + r * (ph + PANEL.gap), portrait, order: 0 });
-    }
+    for (let c = 0; c < cols; c++) slots.push({ plane: p.id, u: startU + c * (along + PANEL.gap), v: startV + r * ROW_PITCH, order: 0 });
   }
-  // Fill centre-out, lower row first: reads as "placed with intent".
+  // Fill centre-out, the sunniest (street-side) row first: reads as "placed with intent".
   const mid = (u0 + u1) / 2;
   slots.sort((a, b) => a.v - b.v || Math.abs(a.u - mid) - Math.abs(b.u - mid));
   return slots;
 }
 
-/** The sun-facing main slope, filled centre-out. */
-export const PANEL_SLOTS: PanelSlot[] = layoutPlane(ROOF_PLANE_BY_ID["main-front"], true).map((s, i) => ({ ...s, order: i }));
+/** Rows on the upper roof, filled centre-out. */
+export const PANEL_SLOTS: PanelSlot[] = layoutRows(ROOF_PLANE_BY_ID["main-roof"]).map((s, i) => ({ ...s, order: i }));
 
 export const PANEL_CAPACITY = PANEL_SLOTS.length;
 
@@ -203,9 +166,9 @@ export const PATIO_AREA_M2 = (GARDEN.patio.x1 - GARDEN.patio.x0) * (GARDEN.patio
 /* ------------------------------------------------------------------ kitchen */
 
 /**
- * The kitchen pavilion (the wing). Worktop runs on the gable wall (south) and the east wall,
- * a bank of tall units on the east wall, an island, and the glass wall to the garden.
- * Heights are above the finished floor.
+ * The kitchen pavilion (the wing). Worktop runs on the south wall and the east wall, a bank of
+ * tall units on the east wall, an island, and the glass wall to the garden. Heights are above
+ * the finished floor.
  */
 export const KITCHEN = {
   ix0: WING.x0 + WALL,
@@ -216,8 +179,10 @@ export const KITCHEN = {
   top: 0.94, // worktop surface
   counterT: 0.03,
   baseD: 0.62,
-  /** tall units and slab backsplash stop here (the gable clerestory sill) */
+  /** tall units and slab backsplash stop here (the clerestory sill) */
   datum: 2.47,
+  /** the slatted oak ceiling */
+  ceiling: 3.2,
   southRun: { x0: -0.2 },
   eastRun: { z1: -9.5 },
   tall: { z0: -9.5, z1: -7.1 },

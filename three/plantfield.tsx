@@ -76,7 +76,17 @@ export function foliageMaterial(map: THREE.Texture, vertexColors = true) {
           diffuseColor.a *= 1.0 + max(0.0, lMip) * 0.28;
         #endif`,
       )
-      .replace("#include <lights_physical_pars_fragment>", FOLIAGE_LIGHT);
+      .replace("#include <lights_physical_pars_fragment>", FOLIAGE_LIGHT)
+      // leaves right at the lens dissolve (dithered) instead of filling the frame with blur
+      .replace(
+        "#include <clipping_planes_fragment>",
+        `#include <clipping_planes_fragment>
+        {
+          vec2 q = mod(floor(gl_FragCoord.xy), 4.0);
+          float bayer = fract(sin(dot(q, vec2(12.9898, 78.233))) * 43758.5453);
+          if (bayer > smoothstep(1.2, 4.0, length(vViewPosition))) discard;
+        }`,
+      );
   };
   m.customProgramCacheKey = () => `vb-cardleaf${vertexColors ? "" : "-nc"}`;
   // garden uplights reach into the crowns after dark
@@ -222,6 +232,8 @@ function makeSpecies(id: string, list: PlantPlacement[], sharp: boolean, shadows
   });
   const imp = buildImpostors(id as PlantId, list, sharp);
   imp.frustumCulled = false;
+  // every plant of the species, whatever its current LOD: the flight planner avoids their crowns
+  imp.userData.placements = mats;
   imp.castShadow = shadows;
   return { id, list, mats, centers, radius, tone, imp, lod: null, shrub: SHRUBS.test(id), sig: "" };
 }

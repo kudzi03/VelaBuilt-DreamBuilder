@@ -123,7 +123,7 @@ export function RoofPanel() {
           <Target size={18} />
           <span>
             <strong>{c.inspect ? "Tap the roof where you've seen trouble" : "Mark a problem on the roof"}</strong>
-            <small>{c.inspect ? "Each mark goes to the roofer with the request" : "Leaks, missing shingles, storm damage"}</small>
+            <small>{c.inspect ? "Each mark goes to the roofer with the request" : "Leaks, ponding, storm damage"}</small>
           </span>
         </button>
         {c.pending && (
@@ -327,7 +327,7 @@ export function SolarPanel() {
       <Group label="System size" value={`${c.panels} panels · ${kw} kW`}>
         <Slider label="Number of panels" min={6} max={PANEL_CAPACITY} value={c.panels} onChange={(v) => set({ panels: v }, "panels")} format={(v) => `${v} panels`} />
         <p className="muted small">
-          Laid out on the sun-facing slope, clear of edges and ridge. This roof fits {PANEL_CAPACITY} panels.
+          Laid out in rows on the flat roof, tilted to the sun and clear of the edges. This roof fits {PANEL_CAPACITY} panels.
         </p>
       </Group>
       <Group label="Panels">
