@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { track } from "@/lib/analytics";
-import { CONTACT_EMAIL } from "@/lib/config";
+import { CONTACT_EMAIL, TURNSTILE_SITE_KEY } from "@/lib/config";
 import { INDUSTRIES } from "@/lib/industries";
 import { topIndustry, useDemo } from "@/lib/store";
 import { Arrow, Check, Mail, WhatsApp } from "./icons";
@@ -20,6 +20,53 @@ interface Form {
   contact: string;
   wants: string;
   hp: string;
+}
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (el: HTMLElement, o: { sitekey: string; theme?: string; callback: (t: string) => void; "expired-callback"?: () => void }) => string;
+      reset: (id?: string) => void;
+      remove: (id: string) => void;
+    };
+  }
+}
+
+/** Cloudflare Turnstile, loaded only when a site key is configured (and only once the form opens). */
+function useTurnstile(el: React.RefObject<HTMLDivElement | null>) {
+  const [token, setToken] = useState("");
+  const widget = useRef<string | null>(null);
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || !el.current) return;
+    let cancelled = false;
+    const mount = () => {
+      if (cancelled || !el.current || !window.turnstile || widget.current) return;
+      widget.current = window.turnstile.render(el.current, { sitekey: TURNSTILE_SITE_KEY, theme: "dark", callback: setToken, "expired-callback": () => setToken("") });
+    };
+    if (window.turnstile) mount();
+    else {
+      const id = "cf-turnstile-script";
+      let tag = document.getElementById(id) as HTMLScriptElement | null;
+      if (!tag) {
+        tag = document.createElement("script");
+        tag.id = id;
+        tag.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        tag.async = true;
+        document.head.appendChild(tag);
+      }
+      tag.addEventListener("load", mount);
+    }
+    return () => {
+      cancelled = true;
+      if (widget.current && window.turnstile) window.turnstile.remove(widget.current);
+      widget.current = null;
+    };
+  }, [el]);
+  const reset = () => {
+    setToken("");
+    if (widget.current && window.turnstile) window.turnstile.reset(widget.current);
+  };
+  return { token, reset, required: !!TURNSTILE_SITE_KEY };
 }
 
 function summary(f: Form) {
@@ -53,6 +100,8 @@ export function LeadForm() {
 function LeadFormBody({ onDone }: { onDone: () => void }) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
+  const human = useRef<HTMLDivElement>(null);
+  const check = useTurnstile(human);
   const [f, setF] = useState<Form>(() => {
     const s = useDemo.getState();
     const top = topIndustry(s);
@@ -74,6 +123,10 @@ function LeadFormBody({ onDone }: { onDone: () => void }) {
       setError(!contactOk ? "Add an email address or a WhatsApp number so we can reply." : "Add your name and company.");
       return;
     }
+    if (check.required && !check.token) {
+      setError("Please complete the check above the button.");
+      return;
+    }
     setError("");
     setStatus("sending");
     const s = useDemo.getState();
@@ -84,7 +137,7 @@ function LeadFormBody({ onDone }: { onDone: () => void }) {
       const res = await fetch("/api/lead", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...f, explored: engaged, ref: s.ref }),
+        body: JSON.stringify({ ...f, explored: engaged, ref: s.ref, turnstile: check.token || undefined }),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; delivered?: boolean; error?: string };
       track("lead_submitted", { industry: f.industry.slice(0, 32), delivered: !!data.delivered });
@@ -93,6 +146,7 @@ function LeadFormBody({ onDone }: { onDone: () => void }) {
       else {
         setError(data.error || "That didn't go through.");
         setStatus("error");
+        check.reset();
       }
     } catch {
       setStatus("error");
@@ -194,6 +248,7 @@ function LeadFormBody({ onDone }: { onDone: () => void }) {
               <input tabIndex={-1} autoComplete="off" value={f.hp} onChange={up("hp")} />
             </label>
           </div>
+          {check.required && <div className="turnstile" ref={human} />}
           {error && (
             <p className="form-error" role="alert">
               {error}

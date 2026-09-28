@@ -163,7 +163,10 @@ export function Experience() {
   useEffect(() => {
     const s = useDemo.getState();
     const params = new URLSearchParams(location.search);
-    const company = params.get("company")?.trim().slice(0, 60) || null;
+    // a company name, not arbitrary text: letters, digits and ordinary business punctuation;
+    // anything else (URLs, symbols, markup) drops the personalisation instead of displaying it
+    const rawCompany = params.get("company")?.replace(/\s+/g, " ").trim() ?? "";
+    const company = rawCompany && rawCompany.length <= 60 && /^[\p{L}\p{N}][\p{L}\p{N} &'’.,()-]*$/u.test(rawCompany) && !/\.(com|net|org|io|co|xyz|ru)\b|https?|www\./i.test(rawCompany) ? rawCompany : null;
     const ref = params.get("ref") || params.get("utm_source") || null;
     if (params.has("debug")) (window as unknown as { __store: typeof useDemo }).__store = useDemo;
     const gl = webglAvailable();

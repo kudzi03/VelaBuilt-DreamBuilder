@@ -13,6 +13,8 @@ export const VELABUILT_URL = "https://velabuilt.com";
 export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "jace@velabuilt.com";
 /** Digits only, international format. Empty → WhatsApp contact is hidden, never faked. */
 export const WHATSAPP_NUMBER = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "").replace(/\D/g, "");
+/** Cloudflare Turnstile site key (public by design). Empty → no human check on the form. */
+export const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 export const INSTAGRAM_URL = "https://www.instagram.com/velabuilt";
 
 export const SHARE_TITLE = "The Future of Contractor Sales";

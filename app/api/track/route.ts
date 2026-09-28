@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { EVENTS } from "@/lib/events";
-import { clientIp, hasSupabase, rateLimited, supabaseInsert } from "@/lib/server";
+import { clientIp, hasSupabase, rateLimited, rejectForeign, supabaseInsert } from "@/lib/server";
 
 export const runtime = "nodejs";
 
@@ -13,6 +13,8 @@ const Event = z.object({
 });
 
 export async function POST(req: Request) {
+  const foreign = rejectForeign(req);
+  if (foreign) return foreign;
   const raw = await req.text();
   if (raw.length > 4000) return new Response(null, { status: 413 });
   let json: unknown;
@@ -23,7 +25,7 @@ export async function POST(req: Request) {
   }
   const parsed = Event.safeParse(json);
   if (!parsed.success) return new Response(null, { status: 400 });
-  if (rateLimited(`track:${clientIp(req)}`, 240, 60 * 1000)) return new Response(null, { status: 429 });
+  if (rateLimited(`track:${clientIp(req)}`, 120, 60 * 1000)) return new Response(null, { status: 429 });
   const e = parsed.data;
   const row = { name: e.name, props: e.props, sid: e.sid, path: e.path, country: req.headers.get("x-vercel-ip-country") ?? null };
   if (hasSupabase()) {

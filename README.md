@@ -60,12 +60,18 @@ required to run the demo; each variable switches on one integration.
 | `LEAD_NOTIFY_EMAIL` | Where enquiries are emailed (default `jace@velabuilt.com`) |
 | `RESEND_API_KEY`, `LEAD_FROM_EMAIL` | Email delivery via [Resend](https://resend.com). The from-domain must be verified in Resend. |
 | `LEAD_WEBHOOK_URL` | POSTs each enquiry as JSON — Zapier, Make, n8n, HubSpot/Pipedrive workflows |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Stores enquiries and analytics events (SQL below) |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Stores enquiries and analytics events (SQL below). The service-role key is read only in `lib/server.ts` (server-only); never give it a `NEXT_PUBLIC_` prefix. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/) human check on the enquiry form, verified server-side. **Set these before connecting any delivery channel above.** |
+
+**Before connecting a delivery channel** (Resend, webhook or Supabase), see
+`SECURITY_AUDIT.md` → M1: Turnstile keys, the Vercel Firewall rules, and a sending cap in Resend.
 
 ### How the enquiry form behaves
 
-`POST /api/lead` validates (zod), drops bots (honeypot), rate-limits, then delivers to
-every configured channel. If **no** channel is configured — or delivery fails — the API
+`POST /api/lead` accepts only same-origin JSON, validates (zod), drops bots (honeypot),
+rate-limits per IP, checks Turnstile when configured, caps deliveries at 30 an hour per
+instance (past that, visitors get the email hand-off), then delivers to every configured
+channel. If **no** channel is configured — or delivery fails — the API
 says so and the form hands the visitor a pre-written email (and WhatsApp, if a number
 is set) containing their enquiry. It never shows a success message for an enquiry that
 went nowhere.
@@ -86,6 +92,17 @@ create table demo_events (
   name text not null, props jsonb, sid text, path text, country text
 );
 
+-- Lock both tables: row level security on, no policies, nothing for the public roles.
+-- Only the service role (used server-side by /api/lead and /api/track) can read or write,
+-- so nobody holding the project's public anon key can list leads.
+alter table demo_leads  enable row level security;
+alter table demo_events enable row level security;
+revoke all on table demo_leads, demo_events from anon, authenticated;
+
+-- /api/track inserts anonymously: keep the events table from growing without bound.
+-- (Supabase: Database → Cron, or run by hand)
+-- delete from demo_events where created_at < now() - interval '90 days';
+
 -- Which industries generate the most interest?
 select props->>'industry' as industry,
        count(*) filter (where name = 'industry_selected')        as opened,
@@ -95,7 +112,8 @@ from demo_events
 group by 1 order by opened desc;
 ```
 
-Enable RLS on both tables; the API uses the service-role key server-side only.
+Check afterwards: Supabase → Table editor → each table shows "RLS enabled", and
+`curl "$SUPABASE_URL/rest/v1/demo_leads" -H "apikey: <anon key>"` returns `[]` or a 401, never rows.
 
 ## Analytics
 

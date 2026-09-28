@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { clientIp, env, rateLimited, supabaseInsert, hasSupabase } from "@/lib/server";
+import { clientIp, env, rateLimited, rejectForeign, supabaseInsert, hasSupabase, turnstileOk } from "@/lib/server";
 
 export const runtime = "nodejs";
 
@@ -13,6 +13,8 @@ const Lead = z.object({
   hp: z.string().max(200).optional(),
   explored: z.array(z.string().max(24)).max(8).default([]),
   ref: z.string().max(60).nullish(),
+  /** Cloudflare Turnstile token (required when TURNSTILE_SECRET_KEY is set) */
+  turnstile: z.string().max(4096).optional(),
 });
 
 type LeadInput = z.infer<typeof Lead>;
@@ -57,7 +59,7 @@ async function viaWebhook(l: LeadInput): Promise<boolean> {
   const res = await fetch(env.webhook, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ source: "velabuilt-contractor-demo", receivedAt: new Date().toISOString(), ...l, hp: undefined }),
+    body: JSON.stringify({ source: "velabuilt-contractor-demo", receivedAt: new Date().toISOString(), ...l, hp: undefined, turnstile: undefined }),
     signal: AbortSignal.timeout(8000),
   });
   return res.ok;
@@ -77,7 +79,12 @@ async function viaSupabase(l: LeadInput): Promise<boolean> {
   });
 }
 
+/** Backstop across all visitors, per instance: past it, enquiries go to the email hand-off. */
+const DELIVERIES_PER_HOUR = 30;
+
 export async function POST(req: Request) {
+  const foreign = rejectForeign(req);
+  if (foreign) return foreign;
   const raw = await req.text();
   if (raw.length > 12000) return Response.json({ ok: false, error: "Too long." }, { status: 413 });
   let json: unknown;
@@ -92,7 +99,14 @@ export async function POST(req: Request) {
 
   // Bots fill the hidden field. Pretend success, deliver nothing.
   if (lead.hp) return Response.json({ ok: true, delivered: true });
-  if (rateLimited(`lead:${clientIp(req)}`, 5, 10 * 60 * 1000)) return Response.json({ ok: false, error: "Too many enquiries — please email us directly." }, { status: 429 });
+  const ip = clientIp(req);
+  if (rateLimited(`lead:${ip}`, 5, 10 * 60 * 1000)) return Response.json({ ok: false, error: "Too many enquiries — please email us directly." }, { status: 429 });
+  if (!(await turnstileOk(lead.turnstile, ip))) return Response.json({ ok: false, error: "Please complete the check above the button." }, { status: 400 });
+  // a flood that gets past the per-IP limits never reaches the inbox, the webhook or the database
+  if (rateLimited("lead:all", DELIVERIES_PER_HOUR, 60 * 60 * 1000)) {
+    console.log(JSON.stringify({ type: "lead", industry: lead.industry, delivered: [], throttled: true }));
+    return Response.json({ ok: true, delivered: false, channels: [] });
+  }
 
   const channels = [
     ["email", viaResend],

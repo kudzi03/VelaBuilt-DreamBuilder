@@ -4,7 +4,8 @@
 **Repository:** `kudzi03/VelaBuilt-DreamBuilder`, all branches (`claude/velabuilt-interactive-demo-t3fmgo`, `claude/velabuilt-visual-upgrade-84x37x`), 20 commits
 **Date:** 2026-09-28
 **Scope:** source, full git history, the compiled client bundle as deployed, live HTTP behaviour, Vercel project configuration, dependencies.
-No application code was changed for this audit.
+The first pass changed no code. The findings below describe the deployment as audited; what was
+fixed afterwards is under "Remediation status".
 
 ---
 
@@ -44,7 +45,43 @@ of your Vercel plan and spend settings.
 | LOW | 6 |
 | INFORMATIONAL | 12 |
 
-Because there are no CRITICAL or HIGH findings, no fixes were applied.
+Because there were no CRITICAL or HIGH findings, the first pass applied no fixes. The owner then
+asked for the MEDIUM and LOW fixes. Their status is below.
+
+---
+
+## Remediation status (second pass, same day)
+
+| Finding | Status | What changed |
+| --- | --- | --- |
+| **M1** enquiry abuse | **Fixed in code.** One dashboard step is open (edge rate limit). | Both APIs accept only `application/json` from their own origin: `text/plain`/form bodies return 415, a foreign `Origin` returns 403 (`lib/server.ts` → `rejectForeign`). Optional **Cloudflare Turnstile**: the form loads the widget and the server verifies the token when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` are set (`LeadForm.tsx`, `turnstileOk`). A **global backstop**: past 30 deliveries an hour per instance, enquiries fall back to the email hand-off and never reach Resend, the webhook or Supabase, whatever IPs the flood uses. The per-IP limit is unchanged. |
+| **M2** bandwidth / invocation cost | **Partly fixed in code.** Dashboard steps are open. | `/api/track` per-IP limit tightened to 120/min and made same-origin only. Static assets are served by Vercel's CDN and never reach application code, so bandwidth can only be capped at the edge: see "Owner actions". |
+| **L1** CSP and headers | **Fixed** | Enforced `Content-Security-Policy` (same-origin everything; `'wasm-unsafe-eval'` for the meshopt decoder; Turnstile hosts only when configured; `vercel.live` only on previews; `frame-ancestors 'self'`, `object-src 'none'`, `base-uri`/`form-action 'self'`). Added `Cross-Origin-Opener-Policy: same-origin`. Widened `Permissions-Policy`. `productionBrowserSourceMaps: false` is now explicit. Tested: all ten scenes and the full interaction run with **zero CSP violations**. |
+| **L2** `.gitignore` | **Fixed** | `.env*` (except `.env.example`), `*.pem`, `*.key`, `*.p12`, `*.pfx`, `service-account*.json`, `.npmrc` are now ignored. Verified with `git check-ignore`. |
+| **L3** Supabase RLS | **Fixed (docs)** | The README SQL now enables RLS on both tables, revokes `anon`/`authenticated`, includes an events-retention query, and adds a one-line check that the anon key reads nothing. |
+| **L4** cross-site simple POSTs | **Fixed** | Same change as M1 (`rejectForeign` on both routes). |
+| **L5** `?company=` spoofing | **Fixed** | Only a plausible company name is shown: letters, digits, `& ' . , ( ) -`, ≤ 60 characters, no URLs. Anything else drops the personalisation (`components/Experience.tsx`). |
+| **L6** fabricated analytics | **Mitigated** | Same-origin only and a tighter per-IP limit. A determined script can still send events from our own origin, so treat the numbers as indicative, not audited. |
+
+### Owner actions (need the Vercel dashboard; the API could not create them)
+
+I tried to add the edge rules through the Vercel API. It returned `404 Seawall Config not found`
+because this project's firewall has never been initialised; the dashboard does that the first
+time the Firewall tab is opened.
+
+1. **Project → Firewall → Configure → Add rule** (three rules, each "Rate limit" by IP, then
+   **Deny**, fixed window):
+   - `Request Path` equals `/api/lead`: 5 requests / 600 s
+   - `Request Path` equals `/api/track`: 120 requests / 60 s
+   - `Request Path` starts with `/assets/`: 600 requests / 60 s
+
+   Then **Publish**.
+2. **Settings → Billing**: confirm the plan. On **Pro**, turn on **Spend Management** with a
+   hard limit and "pause production deployments". On **Hobby**, no bill is possible. The site
+   pauses if the monthly transfer allowance runs out.
+3. **Before connecting Resend, a webhook or Supabase:** create a Turnstile widget in Cloudflare
+   (free) and set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` in Vercel. The CSP
+   and the form pick them up on the next deploy.
 
 ---
 

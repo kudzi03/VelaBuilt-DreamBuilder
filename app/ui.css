@@ -3411,3 +3411,9 @@ input.sr-only:focus + .upload {
   font-size: 32px;
   line-height: 1.04;
 }
+
+/* Cloudflare Turnstile widget in the enquiry form (only when configured) */
+.turnstile {
+  margin-top: 14px;
+  min-height: 65px;
+}

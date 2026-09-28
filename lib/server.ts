@@ -9,7 +9,44 @@ export const env = {
   webhook: process.env.LEAD_WEBHOOK_URL || "",
   supabaseUrl: (process.env.SUPABASE_URL || "").replace(/\/$/, ""),
   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+  /** Cloudflare Turnstile secret: when set, /api/lead requires a valid token from the form */
+  turnstileSecret: process.env.TURNSTILE_SECRET_KEY || "",
 };
+
+/**
+ * Only our own pages may call the APIs: a JSON body (so a cross-site request needs a CORS
+ * preflight, which we never grant) and, when the browser sends an Origin, our own host.
+ * Returns a response to send back, or null to carry on.
+ */
+export function rejectForeign(req: Request): Response | null {
+  const type = (req.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (type !== "application/json") return new Response(null, { status: 415 });
+  const origin = req.headers.get("origin");
+  if (origin) {
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+    let from = "";
+    try {
+      from = new URL(origin).host;
+    } catch {}
+    if (!host || from !== host) return new Response(null, { status: 403 });
+  }
+  return null;
+}
+
+/** Cloudflare Turnstile server-side check. True when Turnstile is not configured. */
+export async function turnstileOk(token: string | undefined, ip: string): Promise<boolean> {
+  if (!env.turnstileSecret) return true;
+  if (!token) return false;
+  const body = new URLSearchParams({ secret: env.turnstileSecret, response: token });
+  if (ip !== "unknown") body.set("remoteip", ip);
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body, signal: AbortSignal.timeout(6000) });
+    const data = (await res.json()) as { success?: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
 
 export const hasSupabase = () => !!(env.supabaseUrl && env.supabaseKey);
 
