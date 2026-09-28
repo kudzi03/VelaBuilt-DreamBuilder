@@ -7,6 +7,8 @@ const axePath = require.resolve("axe-core/axe.min.js");
 const base = process.env.BASE || "http://localhost:3000";
 const browser = await pw.chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+// clicks wait for two stable animation frames; the software renderer draws one every few seconds
+page.setDefaultTimeout(300000);
 await page.goto(base + "/?quality=low&motion=reduced&debug", { waitUntil: "domcontentloaded", timeout: 180000 });
 // the loader lifts once the arrival shot's textures are in
 await page.waitForFunction(() => window.__store?.getState().phase === "intro", null, { timeout: 400000, polling: 500 });
@@ -24,6 +26,13 @@ await audit("intro");
 await page.click(".tile:has-text('Roofing')");
 await page.waitForTimeout(3500);
 await audit("explore/roofing");
+// the "on" states: before/after and roof marking
+await page.click(".compare-btn");
+await page.click(".inspect-btn");
+await page.waitForTimeout(1500);
+await audit("explore/roofing, compare + marking on");
+await page.click(".compare-btn");
+await page.click(".inspect-btn");
 await page.click(".panel__foot .btn--primary");
 await page.waitForTimeout(1500);
 await audit("qualify");

@@ -103,7 +103,9 @@
   transform: translate(-50%, -8px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  /* hidden = out of the tab order and the accessibility tree, once the fade has finished */
+  visibility: hidden;
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease), visibility 0s linear 0.5s;
   max-width: calc(100vw - 560px);
 }
 
@@ -111,6 +113,8 @@
   opacity: 1;
   transform: translate(-50%, 0);
   pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease), visibility 0s;
 }
 
 .switcher__track {
@@ -2890,6 +2894,22 @@ input.sr-only:focus + .upload {
 
 .toggle[data-on="true"] .toggle__track {
   background: var(--champagne-deep);
+}
+
+/* "on" states the light theme drew as pale cream: on the dark glass they are a bronze tint,
+   so their light type stays readable */
+.compare-btn[data-on="true"],
+.inspect-btn[data-on="true"] {
+  background: rgba(212, 154, 78, 0.16);
+  border-color: var(--champagne-deep);
+}
+
+.pending {
+  background: rgba(212, 154, 78, 0.12);
+}
+
+.slot[data-on="true"] {
+  color: rgba(18, 17, 16, 0.72);
 }
 
 .panel .field input,
