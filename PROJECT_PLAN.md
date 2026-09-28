@@ -174,3 +174,22 @@ Rules that came out of the QA passes (worth keeping):
   the planned path against the real meshes and tree crowns (`scripts/qa-camera-paths.mjs`).
 - Measure UI insets where panels come to rest, not mid-entry-animation, or the shot re-frames
   (and the camera re-plans) several times while the panel slides in.
+
+## 9. Pass 4 (2026-09-28): the owner's five references
+
+Measured against five reference images (two dusk glass houses with pools, a steel-and-glass
+building, two night kitchens). Details and before/after in `VISUAL_AUDIT_V3.md`, "Pass 4".
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Tone curve | ACES filmic (was AgX) | Every reference is graded this way: deep blue twilight, saturated amber interiors, dense blacks. The HueSaturation boost was cut back so daylight material colours stay honest. |
+| Roof edge | Knife-edge overhang, 0.3 m charcoal plate | The references' roofs read as thin plates; the structural depth (trusses, the air handler) stays over the walls |
+| LED light | Emissive strips + additive gradients (`three/glow.ts`), no lamps | 46 of 48 lamp slots were already used; a gradient reads as the light on the surface at no per-pixel cost |
+| Kitchen default | Graphite handleless, bold Calacatta waterfall, LED package on | The first thing a visitor sees should look like the references; the LED package is a real priced option |
+| Steel default | Painted charcoal | Architecturally exposed steel is dark; galvanised stays one tap away |
+
+- A QA capture must be taken at the end state: the software renderer draws one frame every few
+  seconds, so a transition that takes 0.4 s on a phone spans the whole capture. `?debug` plus
+  `window.__settle = true` snaps the scene channels to their targets (`scripts/tour.mjs`).
+- Any shader lifted from a demo must be checked with the scene's real coordinates. The pool
+  caustics overflowed half-float targets to Inf/NaN and blanked two scenarios.

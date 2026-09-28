@@ -15,16 +15,17 @@ export interface Choice<T extends string = string> {
 
 /* ---------------------------------------------------------------- remodeling */
 
-export type CabinetId = "shaker-white" | "sage-shaker" | "walnut-slab" | "charcoal-slab";
+export type CabinetId = "graphite" | "two-tone" | "walnut-slab" | "shaker-white" | "sage-shaker";
 export type CounterId = "calacatta" | "black-granite" | "butcher-block" | "concrete";
 export type FloorId = "oak-plank" | "herringbone" | "porcelain" | "concrete";
 export type IslandId = "none" | "island" | "waterfall";
 
 export const CABINETS: Choice<CabinetId>[] = [
+  { id: "graphite", label: "Graphite", detail: "Handleless", swatch: "#46474a", price: [12400, 16200] },
+  { id: "two-tone", label: "Two-tone grey & black", detail: "Handleless", swatch: "linear-gradient(135deg,#cfccc6 0 50%,#1c1c1e 50% 100%)", price: [13200, 17400] },
+  { id: "walnut-slab", label: "Walnut", detail: "Flat panel", swatch: "linear-gradient(135deg,#6b4a33,#4a3121 60%,#7a5639)", price: [14200, 18800] },
   { id: "shaker-white", label: "Warm white", detail: "Shaker", swatch: "#ebe5da", price: [9500, 12500] },
   { id: "sage-shaker", label: "Sage green", detail: "Shaker", swatch: "#7c8a72", price: [10500, 13800] },
-  { id: "walnut-slab", label: "Walnut", detail: "Flat panel", swatch: "linear-gradient(135deg,#6b4a33,#4a3121 60%,#7a5639)", price: [14200, 18800] },
-  { id: "charcoal-slab", label: "Charcoal", detail: "Flat panel", swatch: "#2f3033", price: [11200, 14600] },
 ];
 
 export const COUNTERS: Choice<CounterId>[] = [
@@ -48,6 +49,9 @@ export const ISLANDS: Choice<IslandId>[] = [
 ];
 
 export const REMODEL_BASE: [number, number] = [14000, 18500];
+
+/** Integrated LED lighting: plinth (toe-kick), shelf and under-ledge strips on their own dimmer. */
+export const KITCHEN_LED: Choice<"led"> = { id: "led", label: "Integrated LED lighting", detail: "Plinth, shelf and ledge strips on a dimmer", price: [1900, 2800] };
 
 /* ------------------------------------------------------------------ roofing */
 
@@ -128,9 +132,9 @@ export const ROOF_ISSUES: Choice<RoofIssueId>[] = [
 
 export type CoatingId = "galvanised" | "red-oxide" | "charcoal";
 export const COATINGS: (Choice<CoatingId> & { perTonne: [number, number]; hex: string })[] = [
+  { id: "charcoal", label: "Painted charcoal", hex: "#2d2f33", swatch: "#2d2f33", perTonne: [310, 420] },
   { id: "galvanised", label: "Hot-dip galvanised", hex: "#b9bdc0", swatch: "linear-gradient(135deg,#d3d6d8,#9fa4a8 50%,#c7cacc)", perTonne: [520, 680] },
   { id: "red-oxide", label: "Red-oxide primer", hex: "#8a3b27", swatch: "#8a3b27", perTonne: [140, 200] },
-  { id: "charcoal", label: "Painted charcoal", hex: "#2d2f33", swatch: "#2d2f33", perTonne: [310, 420] },
 ];
 export const STEEL_FAB_PER_TONNE: [number, number] = [2350, 2950];
 

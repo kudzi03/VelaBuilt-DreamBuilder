@@ -94,10 +94,12 @@ export function Director() {
 
     const t = targetsFor();
     const fast = s.reducedMotion ? 6 : 1;
+    // QA captures (?debug): jump straight to the end state instead of animating
+    const settle = (window as unknown as { __settle?: boolean }).__settle === true;
     let moving = false;
     for (const k of Object.keys(t) as ChannelKey[]) {
       const before = channels[k];
-      channels[k] = approach(before, t[k], SPEED[k] * fast, dt);
+      channels[k] = settle ? t[k] : approach(before, t[k], SPEED[k] * fast, dt);
       if (channels[k] !== before) moving = true;
     }
     if (moving) markShadowsDirty(2);

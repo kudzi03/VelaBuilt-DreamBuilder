@@ -33,6 +33,8 @@ export interface RemodelConfig {
   counter: CounterId;
   floor: FloorId;
   island: IslandId;
+  /** integrated LED strips (plinth, shelves, ledge) */
+  lighting: boolean;
 }
 
 export interface RoofFlag {
@@ -163,9 +165,9 @@ export interface DemoState extends Configs {
 }
 
 export const DEFAULTS: Configs = {
-  remodeling: { cabinets: "sage-shaker", counter: "calacatta", floor: "oak-plank", island: "waterfall" },
+  remodeling: { cabinets: "graphite", counter: "calacatta", floor: "oak-plank", island: "waterfall", lighting: true },
   roofing: { material: "membrane", color: "light-grey", inspect: false, pending: null, flags: [] },
-  steel: { truss: "warren", coating: "galvanised", explode: 0, ghost: true, selected: null, files: [], replay: 0 },
+  steel: { truss: "warren", coating: "charcoal", explode: 0, ghost: true, selected: null, files: [], replay: 0 },
   solar: { panels: 14, finish: "black", battery: 1, offset: "most", owner: null, roofAge: null },
   landscaping: { surface: "stone", pergola: false, pool: true, planting: "lush", evening: false },
   hvac: { issue: "uneven", mode: "cool", age: null, zone: null, slot: null },

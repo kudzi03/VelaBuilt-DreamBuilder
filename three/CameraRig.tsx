@@ -47,7 +47,7 @@ export const SHOTS: Record<IndustryId | "hero" | "flow" | "reveal" | "hvacOutdoo
   roofing: { pos: [15.5, 12.5, 21], target: [0.6, 5.2, 0.4], fov: 36, fit: [17, 12], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
   solar: { pos: [9.5, 13.5, 20.5], target: [0.2, 6.2, 1.8], fov: 34, fit: [14, 9], orbit: 0.45, tilt: [0.3, 0.2], zoom: [0.75, 1.2] },
   // standing at the dining end, looking down the pavilion: island, gable wall, garden glass on the left
-  remodeling: { pos: [0.3, 1.45, -4.55], target: [2.6, 1.85, -11.6], level: true, fov: 50, fit: [7, 3.4], maxBack: 1, orbit: 0.4, tilt: [0.12, 0.12], zoom: [0.8, 1.02] },
+  remodeling: { pos: [0.3, 1.45, -4.55], target: [2.6, 1.55, -11.6], level: true, fov: 50, fit: [7, 3.2], maxBack: 1, orbit: 0.4, tilt: [0.12, 0.12], zoom: [0.8, 1.02] },
   landscaping: { pos: [-15.8, 3.1, -16.4], target: [-6.4, 0.9, -8.4], fov: 42, fit: [15, 8], orbit: 0.4, tilt: [0.25, 0.15], zoom: [0.75, 1.2] },
   hvac: { pos: [-15.5, 9.5, 14], target: [0.2, 3.2, -2.6], fov: 38, fit: [19, 11], orbit: 0.5, tilt: [0.3, 0.2], zoom: [0.8, 1.2] },
   // HVAC problems at the outdoor unit: from the east, the unit, the line set up the wall, the attic beyond

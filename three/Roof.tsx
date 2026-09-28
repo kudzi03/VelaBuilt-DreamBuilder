@@ -5,9 +5,16 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { ROOF_ISSUES, ROOF_MATERIAL_BY_ID, type RoofMaterialId } from "@/lib/options";
-import { ROOF_PLANE_BY_ID, ROOF_PLANES, type RoofPlane, type RoofSectionId } from "@/lib/spec";
+import { MAIN, ROOF_PLANE_BY_ID, ROOF_PLANES, WING, type RoofPlane, type RoofSectionId } from "@/lib/spec";
+
+/** walls under each roof: the core of the slab sits on them */
+const ROOF_FOOTPRINT: Record<RoofSectionId, { x0: number; x1: number; z0: number; z1: number }> = {
+  "main-roof": { x0: MAIN.x0, x1: MAIN.x1, z0: MAIN.z0, z1: MAIN.z1 },
+  "wing-roof": { x0: WING.x0, x1: WING.x1, z0: WING.z0, z1: WING.z1 },
+};
 import { useDemo } from "@/lib/store";
 import { box, merge, type Placed } from "./geom";
+import { lampLit } from "./lamps";
 import { pbr, tintFor, type TexId } from "./materials";
 import { channels, depthFor, fades, lazyCache, patch, wipes } from "./shared";
 
@@ -20,7 +27,12 @@ import { channels, depthFor, fades, lazyCache, patch, wipes } from "./shared";
 
 /** coping upstand: width and height above the roof surface */
 const COPING_W = 0.22;
-const COPING_H = 0.12;
+const COPING_H = 0.05;
+/**
+ * The overhangs are a thin plate: the full structural depth stays over the walls and the edge
+ * the garden sees is ROOF_EDGE deep (a knife-edge slab, as in the references).
+ */
+export const ROOF_EDGE = 0.3;
 /** green roofs keep a vegetation-free gravel margin inside the coping */
 const MARGIN_W = 0.45;
 
@@ -53,10 +65,22 @@ function ring(p: RoofPlane, inset: number, w: number, h: number, y: number): Pla
   ];
 }
 
-/** Slab under the surface: the dark edge seen from the ground (its underside is the soffit, drawn by the house). */
+/** Slab under the surface: the thin edge plate seen from the ground (its underside is the soffit, drawn by the house). */
 function slab(p: RoofPlane): THREE.BufferGeometry {
-  const g = box(p.width, p.thickness - 0.01, p.length);
-  g.translate(p.origin[0] + p.width / 2, p.origin[1] - (p.thickness - 0.01) / 2 - 0.005, p.origin[2] - p.length / 2);
+  // reaches 5 mm into the soffit boards below, so no sliver of sky shows between them
+  const t = Math.min(ROOF_EDGE, p.thickness);
+  const g = box(p.width, t, p.length);
+  g.translate(p.origin[0] + p.width / 2, p.origin[1] - t / 2 - 0.005, p.origin[2] - p.length / 2);
+  return g;
+}
+
+/** The structural core over the walls, under the plate: its faces fold the soffit up to the glass heads. */
+function core(p: RoofPlane): THREE.BufferGeometry {
+  const f = ROOF_FOOTPRINT[p.id];
+  const top = p.origin[1] - Math.min(ROOF_EDGE, p.thickness);
+  const h = p.thickness - Math.min(ROOF_EDGE, p.thickness);
+  const g = box(f.x1 - f.x0, h, f.z1 - f.z0);
+  g.translate((f.x0 + f.x1) / 2, top - h / 2, (f.z0 + f.z1) / 2);
   return g;
 }
 
@@ -122,6 +146,7 @@ export function Roof() {
   const geo = useMemo(() => {
     const per = (p: RoofPlane) => ({
       slab: slab(p),
+      core: core(p),
       coping: merge(ring(p, 0, COPING_W, COPING_H, p.origin[1] - 0.01)),
       field: field(p, COPING_W, 0.004),
       inner: field(p, COPING_W + MARGIN_W, 0.02),
@@ -143,17 +168,19 @@ export function Roof() {
       lazy.get(`worn${wing}`, () => patch(pbr("concrete", { color: "#8f8a82", normalScale: 1.2, envMapIntensity: 0.4 }), { cut: "solid", wipe: { side: "before", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined })) as THREE.MeshStandardMaterial;
     const margin = (wing: boolean) => lazy.get(`margin${wing}`, () => patch(pbr("gravel", { color: "#b9b3a8", roughness: 1, scale: 0.6 }), { cut: "solid", wipe: { side: "after", u: wipes.roof }, fade: wing ? fades.wingRoof : undefined })) as THREE.MeshStandardMaterial;
     // the slab edge and the coping: dark bronze, as the window frames
-    const edge = (wing: boolean) => patch(new THREE.MeshStandardMaterial({ color: "#26241f", roughness: 0.5, metalness: 0.55, envMapIntensity: 0.9 }), { cut: "solid", fade: wing ? fades.wingRoof : undefined });
+    const edge = (wing: boolean) => patch(new THREE.MeshStandardMaterial({ color: "#1e1f21", roughness: 0.55, metalness: 0.3, envMapIntensity: 0.8 }), { cut: "solid", fade: wing ? fades.wingRoof : undefined });
     const drain = patch(new THREE.MeshStandardMaterial({ color: "#3a3a3a", roughness: 0.6, metalness: 0.6 }), { cut: "solid" });
+    // the core's faces carry on the soffit's cedar up to the glass heads
+    const core = (wing: boolean) => patch(lampLit(pbr("cedar", { color: "#e9cfb4", roughness: 0.9, envMapIntensity: 0.5 }), ["exterior", "garden"]), { cut: "solid", fade: wing ? fades.wingRoof : undefined });
     const overlay = Object.fromEntries(
       ROOF_PLANES.map((p) => [p.id, new THREE.MeshBasicMaterial({ color: "#e3892a", transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })]),
     ) as Record<RoofSectionId, THREE.MeshBasicMaterial>;
-    return { kind, worn, margin, edge: edge(false), edgeWing: edge(true), drain, overlay };
+    return { kind, worn, margin, edge: edge(false), edgeWing: edge(true), core: core(false), coreWing: core(true), drain, overlay };
   }, [lazy]);
   useEffect(
     () => () => {
       lazy.dispose();
-      [mats.edge, mats.edgeWing, mats.drain, ...Object.values(mats.overlay)].forEach((m) => m.dispose());
+      [mats.edge, mats.edgeWing, mats.core, mats.coreWing, mats.drain, ...Object.values(mats.overlay)].forEach((m) => m.dispose());
     },
     [lazy, mats],
   );
@@ -223,6 +250,7 @@ export function Roof() {
     return (
       <>
         <mesh geometry={g.slab} material={edge} castShadow receiveShadow customDepthMaterial={depth} />
+        <mesh geometry={g.core} material={wing ? mats.coreWing : mats.core} castShadow receiveShadow customDepthMaterial={depth} />
         <mesh geometry={g.coping} material={edge} castShadow receiveShadow customDepthMaterial={depth} />
         <mesh geometry={green ? g.inner : g.field} material={mats.kind(K, wing)} receiveShadow {...surfaceProps(id)} />
         {green && <mesh geometry={g.margin} material={mats.margin(wing)} receiveShadow {...surfaceProps(id)} />}

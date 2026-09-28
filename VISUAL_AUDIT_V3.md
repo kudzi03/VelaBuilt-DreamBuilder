@@ -31,7 +31,7 @@ Legend: **KEEP** — good enough, protect it. **IMPROVE** — right approach, ex
 | HVAC | **KEEP** | X-ray concept is strong; the background trees wrecked it. | Fixed by the trees. |
 | Environment / sky | **KEEP** | Photographed skies, blue-hour grade, matched fog. | — |
 | Camera | **KEEP** | Level shift-lens shots, planned flights through the glass. | — |
-| Post-processing | **KEEP** | AgX, restrained bloom, AO on desktop. | No new effects: realism has to come from assets and light. |
+| Post-processing | **KEEP** | AgX, restrained bloom, AO on desktop. | No new effects: realism has to come from assets and light. (Pass 4 moved to ACES; see below.) |
 
 ## What is out of reach in a browser, and the stance taken
 
@@ -77,3 +77,34 @@ Knock-on changes, so every scenario still works on the new house: flat-roof syst
 roofer (single-ply membrane, standing seam, sedum green roof, gravel ballast), solar rows on
 tilted racks, a steel frame with parallel-chord roof trusses and balcony cantilevers, the air
 handler and ducts in the roof void, a flat slatted oak ceiling in the kitchen.
+
+## Pass 4 — the owner's five references
+
+The owner's standard is five images: two dusk glass houses with pools, a steel-and-glass
+building, and two night kitchens (graphite handleless joinery, a bold-veined waterfall island,
+lit open shelving, LED at the plinth). Every scenario was rendered settled (the capture hook
+`window.__settle` in `?debug` mode skips transitions) and compared with them.
+
+### Bugs found first
+
+| Where | What | Cause | Fix |
+| --- | --- | --- | --- |
+| Garden (daytime) | The whole frame rendered black | The pool caustic pattern was lifted from a shader that expects coordinates near −250; fed world coordinates near −19 its accumulator ran to ~10⁹ and overflowed the half-float render targets. NaN through bloom blanks the frame. | Tile the world position into the pattern's own domain; clamp the result |
+| Steel | Milky white haze and a white blob over the frame | The same overflow as Inf: the pool is visible through the ghosted house, bloom spread it | Same fix |
+
+### Closing the gap
+
+| Reference shows | We had | Now |
+| --- | --- | --- |
+| A thin, dark roof edge; the overhang reads as a plate | A 0.72 m bronze-brown slab edge (0.6 m slab + coping) | Knife-edge overhang: a 0.3 m charcoal plate at the edge, the structural depth kept over the walls (its faces fold the cedar soffit up to the glass heads); a 50 mm coping |
+| Warm soffits with a linear LED at the edge | Flat plaster soffits lit by the sky only | Cedar soffits; an LED cove inside the fascia on the garden and west edges, with the wash it throws across the soffit |
+| Deep blue sky, warm band on the horizon, saturated amber interiors | Lavender sky, beige interiors under AgX | ACES filmic curve; the blue-hour grade pulls the zenith to deep blue and keeps a warm band at the horizon |
+| Black frames | Dark bronze (read brown at dusk) | Charcoal aluminium frames, rail shoes and canopy |
+| Pale fabrics on dark or silvered frames | Orange teak, terracotta cushions | Silvered teak, pale cushions, charcoal accents |
+| Graphite handleless kitchen, marble waterfall island with bold veins | Sage shaker, fine-crackle marble, cabinets stopping short of the ceiling | Default: graphite handleless (new: two-tone grey and black); a generated Calacatta with bold umber veins and a gold halo (tileable, 3.2 × 1.6 m slab); tall units to the ceiling |
+| Lit open shelving, LED at the plinth, downlights scalloping the splash | A lit stone ledge | A walnut-lined open niche with LED under each shelf; plinth LEDs under every run and the island (the pool of light on the floor drawn as an additive gradient); four recessed downlights washing the stone. The LED package is a priced option the customer can switch off. |
+| Dark steel frame behind glass | Galvanised grey default | Painted charcoal is the default coating |
+| Warm walls inside the pavilion | Mauve plaster (not lit by the kitchen lamps) | The pavilion's plaster takes the kitchen lamps; warmer plaster throughout |
+
+Lamps: 46 of the 48 the fragment-uniform budget allows (kitchen downlights added). The LED
+light itself costs no lamps: strips are emissive, their light is a gradient.

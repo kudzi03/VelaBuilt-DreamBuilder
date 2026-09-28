@@ -58,6 +58,11 @@ export function lampLevel(group: LampGroup) {
   return level[group];
 }
 
+/** Re-read every lamp's colour and power (after changing a registered lamp's `power` in place). */
+export function refreshLamps() {
+  syncColors();
+}
+
 /** 0..1 per group. */
 export function setLampLevels(next: Partial<Record<LampGroup, number>>) {
   Object.assign(level, next);

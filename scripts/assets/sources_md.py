@@ -112,6 +112,8 @@ Loaded with `next/font/google` and self-hosted at build time.
 | Limestone cladding, pavers, porcelain, single-ply roof membrane, standing-seam pan | Composited from the scans above (the membrane from generated noise), `scripts/assets/build_textures.py` |
 | Leaf and sprig cards, bark LODs | Derived from the tree scans above, `scripts/assets/build_trees.py` and `.mjs` |
 | Solar cell pattern | Generated on the device, `three/proc.ts` |
+| Calacatta slab (worktops, splash, waterfall island) | Generated: tileable procedural marble, `scripts/assets/marble_gen.py` |
+| LED light falloff (plinth, niche, soffit coves) | Generated on the device, `three/glow.ts` |
 | Industry tile stills `public/previews/*.webp` | Rendered from the live scene, `scripts/og/previews.mjs` |
 | Share image `public/og.jpg`, no-WebGL poster `public/poster.jpg` | Rendered from the live scene, `scripts/og/render.mjs`, `scripts/og/poster.mjs` |
 | UI icons | Hand-drawn inline SVG, `components/icons.tsx` |

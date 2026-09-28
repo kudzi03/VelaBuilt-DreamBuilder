@@ -17,6 +17,8 @@ const browser = await pw.chromium.launch({ args: ["--use-angle=swiftshader", "--
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1 });
 await page.goto(`${base}/?quality=high&motion=reduced&debug`, { waitUntil: "domcontentloaded", timeout: 180000 });
 await page.waitForFunction(() => window.__store?.getState().sceneReady, null, { timeout: 300000, polling: 500 });
+// capture end states, not transitions (the software renderer draws a frame every few seconds)
+await page.evaluate(() => { window.__settle = true; });
 const frames = async (n) => {
   const s = await page.evaluate(() => window.__frames || 0);
   await page.waitForFunction((t) => (window.__frames || 0) >= t, s + n, { timeout: 900000, polling: 250 });

@@ -320,7 +320,7 @@ BUILD = {
     "herringbone": lambda: plain("herringbone", "herringbone_parquet", (3.4, 3.4), (1024, 512)),
     "porcelain": lambda: stone_panels("porcelain", "Marble025", (2.4, 1.2), (1.2, 0.6), 0.002, 853, "stack", 0.015, -0.1, "large-format porcelain 1200x600, stack bond", src_m=1.6, grout=(0.62, 0.6, 0.57), depth=0.0015, grade_args={"saturation": 0.6, "gain": 0.92, "warmth": 0.03}),
     "concrete_polished": lambda: plain("concrete_polished", "Concrete034", (1.1, 0.55), (1024, 512)),
-    "calacatta": lambda: marble("calacatta", "Marble019", (2.0, 2.0), (1024, 512), contrast=1.35, saturation=0.7, gain=1.0, warmth=0.02),
+    # the Calacatta worktop is generated (scripts/assets/marble_gen.py -> calacatta_oro)
     "black_granite": lambda: dark_granite("black_granite", "Granite002A", (1.2, 1.2), note="honed black granite (from a pale granite scan)"),
     "walnut": lambda: plain("walnut", "american_walnut_veneer", (1.0, 1.0), (1024, 512)),
     "white_oak": lambda: plain("white_oak", "white_oak_veneer", (0.5, 0.5)),
@@ -329,7 +329,6 @@ BUILD = {
     "plaster": lambda: plain("plaster", "Plaster001", (2.0, 2.0)),
     "linen": lambda: plain("linen", "rough_linen", (0.27, 0.27), (512, 256), saturation=0.0, gain=1.9),
     "boucle": lambda: plain("boucle", "Fabric061", (0.4, 0.4), (512, 256), saturation=0.25),
-    "leather": lambda: plain("leather", "Leather037", (0.6, 0.6), (512, 256)),
     "brushed_steel": lambda: plain("brushed_steel", "Metal032", (1.0, 1.0), (512, 256)),
 }
 

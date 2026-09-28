@@ -21,7 +21,7 @@ import { Landscape } from "./Landscape";
 const DOWN: Record<Tier, Tier> = { high: "medium", medium: "low", low: "low" };
 
 /** Filmic curve for the no-post path; the post path uses the matching ToneMapping effect. */
-const TONE = THREE.AgXToneMapping;
+const TONE = THREE.ACESFilmicToneMapping;
 
 /** longest the loader waits for textures after the first frame */
 const REVEAL_CAP_MS = 10000;

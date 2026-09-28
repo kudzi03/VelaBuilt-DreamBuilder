@@ -12,6 +12,7 @@ import {
   HVAC_ISSUE_BY_ID,
   HVAC_ISSUES,
   ISLANDS,
+  KITCHEN_LED,
   OFFSETS,
   PANEL_FINISHES,
   ROOF_AGES,
@@ -85,6 +86,7 @@ export function RemodelPanel() {
       <Group label="Layout">
         <Chips label="Layout" options={ISLANDS} value={c.island} onChange={(v) => set({ island: v }, "layout", `Layout: ${ISLANDS.find((x) => x.id === v)?.label}`)} />
       </Group>
+      <Toggle label={KITCHEN_LED.label} detail={KITCHEN_LED.detail} checked={c.lighting} onChange={(v) => set({ lighting: v }, "lighting", v ? "LED lighting on" : "LED lighting off")} />
       <CompareControl what="old kitchen" />
     </>
   );

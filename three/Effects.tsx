@@ -8,10 +8,14 @@ import { TIERS } from "@/lib/quality";
 import { useDemo } from "@/lib/store";
 import { channels } from "./shared";
 
+/**
+ * ACES: the filmic curve architectural photographs are graded toward (deep blue-hour skies,
+ * saturated warm interiors). `?tm=agx|neutral` for comparison.
+ */
 const TONE = (() => {
-  if (typeof window === "undefined") return ToneMappingMode.AGX;
+  if (typeof window === "undefined") return ToneMappingMode.ACES_FILMIC;
   const q = new URLSearchParams(window.location.search).get("tm");
-  return q === "aces" ? ToneMappingMode.ACES_FILMIC : q === "neutral" ? ToneMappingMode.NEUTRAL : ToneMappingMode.AGX;
+  return q === "agx" ? ToneMappingMode.AGX : q === "neutral" ? ToneMappingMode.NEUTRAL : ToneMappingMode.ACES_FILMIC;
 })();
 
 export function Effects() {
@@ -40,9 +44,9 @@ export function Effects() {
       />
       <Bloom ref={bloom} mipmapBlur intensity={0.12} luminanceThreshold={1.25} luminanceSmoothing={0.35} radius={0.72} />
       <ToneMapping mode={TONE} />
-      {/* a photographer's grade on top of the neutral filmic curve: a touch of density and colour */}
-      <HueSaturation saturation={0.14} />
-      <BrightnessContrast contrast={0.07} brightness={-0.01} />
+      {/* a light grade on top of the filmic curve: a touch of density */}
+      <HueSaturation saturation={0.03} />
+      <BrightnessContrast contrast={0.05} brightness={-0.005} />
       <Vignette offset={0.32} darkness={0.38} eskil={false} />
     </EffectComposer>
   );

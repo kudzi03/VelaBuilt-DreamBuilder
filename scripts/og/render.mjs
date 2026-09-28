@@ -19,6 +19,8 @@ const browser = await pw.chromium.launch({ args: ["--use-angle=swiftshader", "--
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 2 });
 await page.goto(`${base}/?quality=high&motion=reduced&debug`, { waitUntil: "domcontentloaded", timeout: 180000 });
 await page.waitForFunction(() => window.__store?.getState().sceneReady, null, { timeout: 300000, polling: 500 });
+// capture end states, not transitions (the software renderer draws a frame every few seconds)
+await page.evaluate(() => { window.__settle = true; });
 // the app's own font faces (next/font, self-hosted): the headless browser can't reach Google Fonts
 // (their urls are relative to the stylesheet: made absolute so they resolve from another page)
 const faces = await page.evaluate(() =>

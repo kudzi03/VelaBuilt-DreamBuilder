@@ -11,7 +11,7 @@ import { box, merge, rbox, type Placed } from "./geom";
 import { Beds, CLUMP, FERNS, mix, type Bed } from "./beds";
 import { type PlantPlacement } from "./impostor";
 import { PlantField } from "./plantfield";
-import { lampLit, registerLamps, unregisterLamps, updateLampViewPositions, type Lamp } from "./lamps";
+import { lampLit, refreshLamps, registerLamps, unregisterLamps, updateLampViewPositions, type Lamp } from "./lamps";
 import { sharedGround } from "./Landscape";
 import { pbr, solid } from "./materials";
 import { rng } from "./proc";
@@ -52,6 +52,45 @@ const GARDEN_LAMPS: Lamp[] = [
   { pos: [-13.6, 0.25, -5.2], color: "#ffc98a", power: 12, range: 5.5, group: "garden", cone: { dir: [0.1, 1, 0], inner: 20, outer: 48 } },
   { pos: [-2.9, 0.25, -17.5], color: "#ffcc90", power: 30, range: 7.5, group: "garden", cone: { dir: [0.05, 1, -0.08], inner: 18, outer: 42 } },
 ];
+
+/** The fire table in the lounge: its burner, and the low, flickering light it throws on the seating. */
+const FIRE: [number, number, number] = [(PG.x0 + PG.x1) / 2 - 0.05, 0.36, (PG.z0 + PG.z1) / 2 + 0.2];
+const FIRE_LAMP: Lamp = { pos: [FIRE[0], 0.62, FIRE[2]], color: "#ff9d52", power: 0, range: 3.8, group: "garden" };
+const FIRE_POWER = 8;
+
+/** Flame tongues over a linear burner: white-gold at the base, orange, then red at the tips (linear RGB, additive). */
+let flameTex: THREE.DataTexture | null = null;
+function flameTexture() {
+  if (flameTex) return flameTex;
+  const W = 128;
+  const H = 64;
+  const data = new Uint8Array(W * H * 4);
+  const base = [1.0, 0.82, 0.48];
+  const mid = [1.0, 0.42, 0.1];
+  const tip = [0.55, 0.1, 0.02];
+  for (let y = 0; y < H; y++) {
+    const v = y / (H - 1); // row 0 is the base of the flame
+    for (let x = 0; x < W; x++) {
+      const u = x / (W - 1);
+      const taper = Math.min(1, Math.min(u, 1 - u) / 0.12);
+      const tongue = 0.45 + 0.5 * Math.pow(Math.abs(Math.sin(u * Math.PI * 5.5 + Math.sin(u * 17) * 0.6)), 0.7);
+      const h = tongue * (0.35 + 0.65 * taper);
+      const k = v >= h ? 0 : Math.pow(1 - v / h, 0.9) * (v < 0.08 ? v / 0.08 : 1);
+      const c = v < 0.35 ? base.map((b, i) => b + (mid[i] - b) * (v / 0.35)) : mid.map((m, i) => m + (tip[i] - m) * Math.min(1, (v - 0.35) / 0.5));
+      const i = (y * W + x) * 4;
+      data[i] = Math.round(255 * c[0] * k);
+      data[i + 1] = Math.round(255 * c[1] * k);
+      data[i + 2] = Math.round(255 * c[2] * k);
+      data[i + 3] = 255;
+    }
+  }
+  flameTex = new THREE.DataTexture(data, W, H);
+  flameTex.colorSpace = THREE.NoColorSpace;
+  flameTex.magFilter = THREE.LinearFilter;
+  flameTex.minFilter = THREE.LinearFilter;
+  flameTex.needsUpdate = true;
+  return flameTex;
+}
 
 function poolShell(): Placed[] {
   const w = PL.x1 - PL.x0;
@@ -104,6 +143,7 @@ function outdoorFurniture() {
   const cushion: Placed[] = [];
   const accent: Placed[] = [];
   const stone: Placed[] = [];
+  const burner: Placed[] = [];
   const cx = (PG.x0 + PG.x1) / 2;
   const cz = (PG.z0 + PG.z1) / 2;
   const q = new THREE.Quaternion();
@@ -131,9 +171,9 @@ function outdoorFurniture() {
   };
   sofa(cx - 0.1, PG.z0 + 0.72, 2.6, 0);
   sofa(PG.x0 + 0.62, cz + 0.4, 1.7, Math.PI / 2);
-  // coffee table: honed stone on a teak plinth
-  stone.push({ geo: rbox(1.1, 0.05, 0.7, 0.008, 2), pos: [cx - 0.05, 0.365, cz + 0.2] });
-  teak.push({ geo: rbox(0.92, 0.32, 0.52, 0.01), pos: [cx - 0.05, 0.18, cz + 0.2] });
+  // fire table: a honed concrete block with a lava-rock burner channel
+  stone.push({ geo: rbox(1.2, 0.35, 0.72, 0.012, 2), pos: [FIRE[0], 0.175, FIRE[2]] });
+  burner.push({ geo: box(0.76, 0.012, 0.15), pos: [FIRE[0], 0.352, FIRE[2]] });
 
   // chaises by the pool: slatted teak frame, reclined back, thick cushion
   for (const z of [PL.z0 + 2.2, PL.z0 + 3.7]) {
@@ -146,7 +186,7 @@ function outdoorFurniture() {
     put(m, rbox(0.62, 0.055, 0.66, 0.026, 3), 0, 0.55, -0.62, cushion, 0.62);
     put(m, rbox(0.44, 0.13, 0.28, 0.06, 3), 0, 0.72, -0.84, accent, 0.62); // head pillow
   }
-  return { teak, cushion, accent, stone };
+  return { teak, cushion, accent, stone, burner };
 }
 
 interface GardenPlants {
@@ -210,11 +250,12 @@ export function Garden() {
   const hi = tier !== "low";
   const beforeOn = compare && industry === "landscaping" && phase === "explore";
   const lights = useRef<THREE.Group>(null);
+  const flame = useRef<THREE.Mesh>(null);
 
   useEffect(() => markShadowsDirty(4), [c.surface, c.pergola, c.pool, c.planting, industry]);
   useEffect(() => {
-    registerLamps(GARDEN_LAMPS);
-    return () => unregisterLamps(GARDEN_LAMPS);
+    registerLamps([...GARDEN_LAMPS, FIRE_LAMP]);
+    return () => unregisterLamps([...GARDEN_LAMPS, FIRE_LAMP]);
   }, []);
 
   const geo = useMemo(() => {
@@ -260,6 +301,14 @@ export function Garden() {
       cushion: merge(fu.cushion),
       accent: merge(fu.accent),
       tableTop: merge(fu.stone),
+      burner: merge(fu.burner),
+      // two flame sheets along the burner, crossed a little so they read from any side
+      flame: merge([-0.22, 0.22].map((r) => {
+        const g = new THREE.PlaneGeometry(0.72, 0.3);
+        g.translate(0, 0.15, 0);
+        g.rotateY(r);
+        return { geo: g };
+      })),
       stones: merge(STONES.map(([x, z]) => ({ geo: box(0.7, 0.05, 0.45), pos: [x, 0.025, z] }))),
       bollards: merge(bollards),
       bollardTops: merge(bollardTops),
@@ -288,10 +337,13 @@ export function Garden() {
       water: s(waterMaterial()),
       steel: s(lit(solid("#2a2724", 0.45, 0.7))),
       timber: s(lit(pbr("cedar", { color: "#e8d6c2", roughness: 1 }))),
-      teak: s(lit(pbr("oak_veneer", { color: "#a07b58", roughness: 0.85 }))),
-      cushion: s(lit(pbr("linen", { color: "#e6e0d5", roughness: 1 }))),
-      accent: s(lit(pbr("linen", { color: "#b5714f", roughness: 1 }))),
+      // weathered (silvered) teak, pale outdoor fabric, charcoal accent cushions
+      teak: s(lit(pbr("oak_veneer", { color: "#8f8579", roughness: 0.9 }))),
+      cushion: s(lit(pbr("linen", { color: "#e9e5de", roughness: 1 }))),
+      accent: s(lit(pbr("linen", { color: "#5d5a55", roughness: 1 }))),
       tableTop: s(lit(pbr("concrete", { color: "#b9b2a8", roughness: 0.9 }))),
+      burner: s(lit(solid("#141312", 0.8, 0, { emissive: new THREE.Color("#ff6a1f"), emissiveIntensity: 0 }))),
+      flame: s(new THREE.MeshBasicMaterial({ map: flameTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })),
       stones: s(lit(pbr("paver_stone", { roughness: 1 }))),
       bollard: s(solid("#262422", 0.45, 0.6)),
       bulb: new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffd9a8").multiplyScalar(5) }),
@@ -325,6 +377,18 @@ export function Garden() {
     POOL_U.uCaustic.value = 1 - THREE.MathUtils.smoothstep(d, 0.25, 0.6);
     mats.bulb.color.setRGB(1, 0.85, 0.66).multiplyScalar(0.4 + lit * 6);
     if (lights.current) lights.current.visible = lit > 0.01;
+    // the fire: lit with the garden, flickering; its light follows the flame
+    const t = U.time.value;
+    const flick = 0.82 + 0.1 * Math.sin(t * 11.3) + 0.06 * Math.sin(t * 17.9 + 1.3) + 0.04 * Math.sin(t * 29.1 + 0.4);
+    const fireOn = c.pool ? lit : 0;
+    FIRE_LAMP.power = FIRE_POWER * fireOn * flick;
+    refreshLamps();
+    mats.flame.color.setScalar(2.4 * fireOn);
+    mats.burner.emissiveIntensity = 1.6 * fireOn * flick;
+    if (flame.current) {
+      flame.current.visible = fireOn > 0.01;
+      flame.current.scale.set(1, 0.85 + 0.25 * (flick - 0.82) / 0.2, 1);
+    }
   });
 
   // Planar reflection on desktop tiers: the lit house mirrored in the pool at dusk.
@@ -380,6 +444,10 @@ export function Garden() {
           <mesh geometry={geo.teak} material={mats.teak} {...sh} />
           <mesh geometry={geo.cushion} material={mats.cushion} {...sh} />
           <mesh geometry={geo.accent} material={mats.accent} {...sh} />
+          {/* the lounge's fire table */}
+          <mesh geometry={geo.tableTop} material={mats.tableTop} {...sh} />
+          <mesh geometry={geo.burner} material={mats.burner} receiveShadow />
+          <mesh ref={flame} geometry={geo.flame} material={mats.flame} position={[FIRE[0], FIRE[1] + 0.005, FIRE[2]]} renderOrder={3} visible={false} />
         </>
       ) : (
         <mesh geometry={geo.plug} material={mats.plug} receiveShadow />
@@ -388,7 +456,6 @@ export function Garden() {
         <>
           <mesh geometry={geo.steel} material={mats.steel} {...sh} />
           <mesh geometry={geo.timber} material={mats.timber} {...sh} />
-          <mesh geometry={geo.tableTop} material={mats.tableTop} {...sh} />
         </>
       )}
       <PlantField plants={plants.core} />
@@ -455,7 +522,10 @@ function underwater<T extends THREE.MeshStandardMaterial>(m: T, u: { uTime: { va
         uniform float uCaustic;
         uniform float uGlow;
         float causticAt(vec2 p, float t) {
-          vec2 q = p * 1.9;
+          // the pattern is built for a domain far from the origin (|q| ~ 250): near it the
+          // accumulator runs away (~1e9) and overflows the half-float targets (Inf/NaN bloom
+          // over the whole frame). Tile the world position into that domain.
+          vec2 q = mod(p * 1.9, 6.2831853) - 250.0;
           vec2 i = q;
           float c = 1.0;
           for (int n = 0; n < 4; n++) {
@@ -465,7 +535,7 @@ function underwater<T extends THREE.MeshStandardMaterial>(m: T, u: { uTime: { va
           }
           c /= 4.0;
           c = 1.17 - pow(c, 1.4);
-          return pow(abs(c), 8.0);
+          return min(pow(abs(c), 8.0), 1.5);
         }`,
       )
       .replace(

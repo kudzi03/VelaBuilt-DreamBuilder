@@ -10,7 +10,7 @@ It ends on: **This is what VelaBuilt builds.** · *Build this for my business.*
 
 | Business | What the customer does in 3D |
 | --- | --- |
-| Remodeling | Walk into the kitchen pavilion: fronts, stone worktop and slab backsplash, floors, island layout, before/after wipe |
+| Remodeling | Walk into the kitchen pavilion: handleless, flat-panel or Shaker fronts, stone worktop and slab backsplash, floors, island layout, integrated LED lighting, before/after wipe |
 | Roofing | Four roof systems and colours, **tap the roof to mark problems**, areas measured from the model, before/after |
 | Structural steel | The building burns away along a section plane to its frame; erection sequence, explode, tap any member for section/length/mass, member schedule, attach drawings |
 | Solar | Panels laid out inside the roof's setbacks, system size, finish, batteries, homeowner/roof-age qualification |
@@ -166,6 +166,10 @@ Key ideas:
   the glass wall, and bends onto a new mark if the layout changes mid-move.
 - **Light you can believe.** Two photographed skies drive sky, image-based light and sun
   across golden and blue hour; rooms use lamps and (in the kitchen) a captured room probe.
+  LED strips (kitchen plinths and shelves, the soffit coves) are emissive, and the light they
+  throw is an additive gradient (`three/glow.ts`), so they cost no lamps. The frame is graded
+  with the ACES filmic curve, as architectural twilight photography is (`?tm=agx|neutral` to
+  compare).
 
 ## Performance
 
@@ -211,6 +215,8 @@ node scripts/shot.mjs "/?quality=medium&motion=reduced" out.png 390 844 15000   
 node scripts/qa-interactions.mjs ./qa     # roof marking, compare, lighting, steel, enquiry
 node scripts/qa-a11y.mjs                  # axe-core across intro → explore → flow → reveal → form
 node scripts/qa-camera-paths.mjs          # every shot-to-shot camera move vs walls and tree crowns
+node scripts/tour.mjs ./tour 1440 900     # every scenario, settled, UI hidden (UI=1 to show it)
+node scripts/qa-bisect.mjs landscaping    # a blank or washed-out view: hide scene groups in turn
 node scripts/og/render.mjs                # re-render the share image from the live scene
 node scripts/og/poster.mjs                # re-render the no-WebGL poster
 node scripts/og/previews.mjs              # re-render the industry stills on the intro
@@ -221,6 +227,7 @@ Asset pipeline (sources are downloaded to `.cache/`, never committed):
 ```bash
 python3 scripts/assets/fetch.py           # CC0 skies, textures, models, plants + credits
 python3 scripts/assets/build_textures.py  # PBR sets → public/assets/tex (Pillow + NumPy)
+python3 scripts/assets/marble_gen.py      # the generated Calacatta slab → public/assets/tex/calacatta_oro
 node scripts/assets/build_models.mjs      # props → meshopt GLB (gltf-transform)
 python3 scripts/assets/build_trees.py     # 3D trees: leaf/sprig cards + bark, ground cover (NumPy, SciPy)
 node scripts/assets/build_trees.mjs       # → public/assets/trees: meshopt GLB, WebP, cards.bin

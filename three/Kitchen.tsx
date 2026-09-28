@@ -8,6 +8,7 @@ import type { CabinetId, CounterId, FloorId } from "@/lib/options";
 import { FLOOR_Y, KITCHEN as K } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { box, merge, rbox, type Placed } from "./geom";
+import { glowMaterial } from "./glow";
 import { lampLevel, lampLit, registerLamps, unregisterLamps, type Lamp } from "./lamps";
 import { pbr, solid } from "./materials";
 import { REMODEL_DUSK } from "./Director";
@@ -37,7 +38,8 @@ const PL = Y0 + K.plinth;
 const GAP = 0.003;
 const F_Y0 = PL + GAP; // fronts: bottom
 const F_Y1 = TOP - CT - GAP; // fronts: top (under the worktop)
-const TALL_Y1 = DATUM - GAP;
+/** tall units run to the slatted ceiling */
+const TALL_Y1 = Y0 + K.ceiling - GAP;
 const RUN_S0 = K.southRun.x0;
 const RUN_S1 = X1 - D; // gable-run fronts stop where the east run starts (blind corner behind)
 const RUN_E0 = Z0 + D; // the east run starts in front of the gable run
@@ -65,7 +67,7 @@ function at(run: Run, along: number, y: number, out: number) {
   return m;
 }
 
-type Style = "shaker" | "slab";
+type Style = "shaker" | "slab" | "handleless";
 interface Parts {
   fronts: Placed[];
   pulls: Placed[];
@@ -79,7 +81,7 @@ function front(run: Run, style: Style, along: number, w: number, y0: number, y1:
   const cy = (y0 + y1) / 2;
   const t = 0.019;
   const out = D - t / 2;
-  if (style === "slab") {
+  if (style !== "shaker") {
     into.fronts.push({ geo: rbox(w, h, t, 0.0015), matrix: at(run, along, cy, out) });
     return;
   }
@@ -125,7 +127,7 @@ function baseFronts(run: Run, start: number, units: Unit[], style: Style, into: 
   for (const u of units) {
     const c = a + u.w / 2;
     const w = u.w - GAP * 2;
-    const topY = style === "slab" ? F_Y1 - 0.032 : F_Y1; // slab: the handle is a channel under the worktop
+    const topY = style === "shaker" ? F_Y1 : F_Y1 - 0.032; // flat fronts: the handle is a channel under the worktop
     const hs = u.kind === "drawers3" ? [0.18, 0.31] : u.kind === "drawers2" ? [0.3] : u.kind === "sink" ? [0.18] : [];
     let y = topY;
     const rows: [number, number][] = [];
@@ -154,8 +156,12 @@ function baseFronts(run: Run, start: number, units: Unit[], style: Style, into: 
   }
 }
 
-function tallFronts(run: Run, start: number, units: Unit[], style: Style, into: Parts) {
+/** The open niche in the tall bank: a lower door, lit open shelves, a door over. */
+const NICHE = { y0: Y0 + 0.9, y1: Y0 + 2.34, shelves: [Y0 + 1.38, Y0 + 1.86] };
+
+function tallFronts(run: Run, start: number, units: Unit[], style: Style, into: Parts, pantry: Parts) {
   let a = start;
+  const pulls = style !== "handleless";
   for (const u of units) {
     const c = a + u.w / 2;
     const w = u.w - GAP * 2;
@@ -170,17 +176,60 @@ function tallFronts(run: Run, start: number, units: Unit[], style: Style, into: 
       barPull(run, c, Y0 + 1.65, w - 0.12, false, into, 0.007);
       if (style === "shaker") barPull(run, c, Y0 + 0.6, 0.2, false, into);
     } else if (u.kind === "pantry") {
-      front(run, style, c, w, F_Y0, Y0 + 1.5, into);
-      front(run, style, c, w, Y0 + 1.5 + GAP, TALL_Y1, into);
-      barPull(run, pullAt, Y0 + 1.2, 0.3, true, into);
-      barPull(run, pullAt, Y0 + 1.8, 0.3, true, into);
+      // after: the lit niche (doors below and above it); before: a pantry cupboard
+      front(run, style, c, w, F_Y0, NICHE.y0 - GAP, into);
+      front(run, style, c, w, NICHE.y1 + GAP, TALL_Y1, into);
+      front(run, style, c, w, NICHE.y0, NICHE.y1, pantry);
+      if (pulls) {
+        barPull(run, pullAt, Y0 + 0.62, 0.2, true, into);
+        barPull(run, pullAt, NICHE.y1 + 0.16, 0.2, true, into);
+        barPull(run, pullAt, Y0 + 1.2, 0.3, true, pantry);
+      }
     } else {
       // integrated fridge / freezer: one tall door each
       front(run, style, c, w, F_Y0, TALL_Y1, into);
-      barPull(run, pullAt, Y0 + 1.25, style === "slab" ? 0.9 : 0.45, true, into);
+      if (pulls) barPull(run, pullAt, Y0 + 1.25, style === "slab" ? 0.9 : 0.45, true, into);
     }
     a += u.w;
   }
+}
+
+/** Where the niche sits along the east run (the pantry slot of the tall bank). */
+function nicheSpan() {
+  let a = K.tall.z0;
+  for (const u of TALL_UNITS) {
+    if (u.kind === "pantry") return { a0: a, a1: a + u.w };
+    a += u.w;
+  }
+  return { a0: a, a1: a };
+}
+
+/** Walnut-lined open niche: back, sides, shelves; LED strips under each shelf and the head. */
+function niche() {
+  const { a0, a1 } = nicheSpan();
+  const w = a1 - a0 - 0.02;
+  const mid = (a0 + a1) / 2;
+  const depth = D - 0.03;
+  const lining: Placed[] = [];
+  const led: Placed[] = [];
+  const back: Placed[] = [];
+  const shelves: Placed[] = [];
+  const bays: number[] = [NICHE.y0, ...NICHE.shelves, NICHE.y1];
+  // sides, bottom, head
+  lining.push({ geo: box(0.018, NICHE.y1 - NICHE.y0, depth), matrix: at(EAST, a0 + 0.01 + 0.009, (NICHE.y0 + NICHE.y1) / 2, depth / 2) });
+  lining.push({ geo: box(0.018, NICHE.y1 - NICHE.y0, depth), matrix: at(EAST, a1 - 0.01 - 0.009, (NICHE.y0 + NICHE.y1) / 2, depth / 2) });
+  lining.push({ geo: box(w, 0.025, depth), matrix: at(EAST, mid, NICHE.y0 + 0.0125, depth / 2) });
+  lining.push({ geo: box(w, 0.025, depth), matrix: at(EAST, mid, NICHE.y1 - 0.0125, depth / 2) });
+  for (const y of NICHE.shelves) shelves.push({ geo: box(w - 0.036, 0.028, depth - 0.02), matrix: at(EAST, mid, y, (depth - 0.02) / 2) });
+  // one back panel per bay (each carries its own light gradient)
+  for (let i = 0; i < bays.length - 1; i++) {
+    const y0 = bays[i] + (i === 0 ? 0.025 : 0.014);
+    const y1 = bays[i + 1] - (i === bays.length - 2 ? 0.025 : 0.014);
+    back.push({ geo: box(w - 0.036, y1 - y0, 0.01), matrix: at(EAST, mid, (y0 + y1) / 2, 0.02) });
+  }
+  // LED strips just behind the front edge, under each shelf and the head
+  for (const y of [...NICHE.shelves.map((y) => y - 0.016), NICHE.y1 - 0.027]) led.push({ geo: box(w - 0.06, 0.004, 0.012), matrix: at(EAST, mid, y, depth - 0.05) });
+  return { lining, led, back, shelves, mid };
 }
 
 const SIDE = 0.7033;
@@ -210,13 +259,14 @@ const ISLAND_UNITS: Unit[] = Array.from({ length: 4 }, () => ({ w: (IS.z1 - IS.z
 
 function joinery(style: Style) {
   const run = parts();
+  const pantry = parts();
   baseFronts(SOUTH, RUN_S0, SOUTH_UNITS, style, run);
   baseFronts(EAST, RUN_E0, EAST_UNITS, style, run);
-  tallFronts(EAST, K.tall.z0, TALL_UNITS, style, run);
+  tallFronts(EAST, K.tall.z0, TALL_UNITS, style, run, pantry);
   const island = parts();
   // the island's working side faces the east run; along runs south from its north end
   baseFronts(ISLAND, -IS.z1, ISLAND_UNITS, style, island);
-  return { run, island };
+  return { run, island, pantry };
 }
 
 /** Carcasses, end panels, plinths. */
@@ -229,8 +279,13 @@ function carcasses() {
   // gable run, to the east wall (the blind corner sits behind the east run)
   body.push({ geo: box(X1 - RUN_S0, h, dd), pos: [(RUN_S0 + X1) / 2, cy, Z0 + dd / 2] });
   body.push({ geo: box(dd, h, RUN_E1 - RUN_E0), pos: [X1 - dd / 2, cy, (RUN_E0 + RUN_E1) / 2] });
+  // the tall bank, open round the niche
   const th = TALL_Y1 - PL;
-  body.push({ geo: box(dd, th, K.tall.z1 - K.tall.z0), pos: [X1 - dd / 2, PL + th / 2, (K.tall.z0 + K.tall.z1) / 2] });
+  const n = nicheSpan();
+  body.push({ geo: box(dd, th, n.a0 - K.tall.z0), pos: [X1 - dd / 2, PL + th / 2, (K.tall.z0 + n.a0) / 2] });
+  body.push({ geo: box(dd, th, K.tall.z1 - n.a1), pos: [X1 - dd / 2, PL + th / 2, (n.a1 + K.tall.z1) / 2] });
+  body.push({ geo: box(dd, NICHE.y0 - PL, n.a1 - n.a0), pos: [X1 - dd / 2, (PL + NICHE.y0) / 2, (n.a0 + n.a1) / 2] });
+  body.push({ geo: box(dd, TALL_Y1 - NICHE.y1, n.a1 - n.a0), pos: [X1 - dd / 2, (NICHE.y1 + TALL_Y1) / 2, (n.a0 + n.a1) / 2] });
   // end panel of the tall bank, flush with the fronts
   body.push({ geo: rbox(D, TALL_Y1 - Y0, 0.019, 0.0015), pos: [X1 - D / 2, Y0 + (TALL_Y1 - Y0) / 2, K.tall.z1 + 0.0095] });
   // plinths, set back 50 mm
@@ -375,6 +430,51 @@ function stools(n: number) {
   return { seat, frame };
 }
 
+/* ------------------------------------------------------ integrated lighting */
+
+/**
+ * Plinth (toe-kick) LEDs: a strip under the carcass front on each run, and the pool of light it
+ * throws on the floor, drawn as an additive gradient (the floor is lit, the strip is not seen).
+ */
+function toeKick(run: Run, a0: number, a1: number) {
+  const len = Math.abs(a1 - a0);
+  const mid = (a0 + a1) / 2;
+  const strip: Placed = { geo: box(len, 0.006, 0.01), matrix: at(run, mid, PL - 0.004, D - 0.045) };
+  const reach = 0.42;
+  const g = new THREE.PlaneGeometry(len, reach);
+  // lying flat, facing up; in the run's frame x runs along it and z out into the room, so
+  // uv.y = 1 falls on the plinth side and 0 on the far edge
+  g.rotateX(-Math.PI / 2);
+  return { strip, glow: { geo: g, matrix: at(run, mid, Y0 + 0.003, D - 0.06 + reach / 2) } as Placed };
+}
+
+function ledPlan() {
+  const strips: Placed[] = [];
+  const glows: Placed[] = [];
+  const islandStrips: Placed[] = [];
+  const islandGlows: Placed[] = [];
+  for (const [run, a0, a1] of [
+    [SOUTH, RUN_S0, RUN_S1],
+    [EAST, RUN_E0, K.tall.z1],
+  ] as [Run, number, number][]) {
+    const t = toeKick(run, a0, a1);
+    strips.push(t.strip);
+    glows.push(t.glow);
+  }
+  const it = toeKick(ISLAND, -IS.z1 + 0.05, -IS.z0 - 0.05);
+  islandStrips.push(it.strip);
+  islandGlows.push(it.glow);
+  return { strips, glows, islandStrips, islandGlows };
+}
+
+/** Recessed downlights over the gable run: they scallop the stone splash. [x, z] */
+const DOWNLIGHTS: [number, number][] = [
+  [0.55, Z0 + 0.42],
+  [2.5, Z0 + 0.42],
+  [4.3, Z0 + 0.42],
+  [X1 - 0.42, -9.92],
+];
+
 /* -------------------------------------------------------------- the ceiling */
 
 /** Underside of the slatted white-oak ceiling (flat, under the pavilion's roof slab). */
@@ -474,14 +574,20 @@ const LAMPS: Lamp[] = [
   // the light slot in the ceiling
   { pos: [(X0 + X1) / 2, CEIL_Y - 0.1, -11.6], color: "#fff0e2", power: 3, range: 6, group: "kitchen" },
   { pos: [(X0 + X1) / 2, CEIL_Y - 0.1, -6.6], color: "#fff0e2", power: 3, range: 6, group: "kitchen" },
+  // recessed downlights close to the walls: the scallops on the stone
+  ...DOWNLIGHTS.map(([x, z]) => {
+    const toWall: [number, number, number] = z === Z0 + 0.42 ? [0, -1, -0.16] : [0.16, -1, 0];
+    return { pos: [x, CEIL_Y - 0.02, z] as V3, color: "#ffe2c2", power: 9, range: 3.8, group: "kitchen" as const, cone: { dir: toWall, inner: 14, outer: 36 } };
+  }),
 ];
 
 /* ---------------------------------------------------------------- materials */
 
 const CAB_PAINT: Record<Exclude<CabinetId, "walnut-slab">, { color: string; roughness: number }> = {
+  graphite: { color: "#3d3e41", roughness: 0.62 },
+  "two-tone": { color: "#cdcac4", roughness: 0.55 },
   "shaker-white": { color: "#e8e2d6", roughness: 0.46 },
   "sage-shaker": { color: "#7f8c74", roughness: 0.5 },
-  "charcoal-slab": { color: "#2e2f32", roughness: 0.55 },
 };
 
 /** Veneer with the grain turned vertical (doors are cut that way). */
@@ -506,7 +612,22 @@ export function Kitchen() {
   const geo = useMemo(() => {
     const shaker = joinery("shaker");
     const slab = joinery("slab");
+    const hl = joinery("handleless");
     const c = carcasses();
+    const n = niche();
+    const lp = ledPlan();
+    const trims: Placed[] = DOWNLIGHTS.map(([x, z]) => ({ geo: new THREE.CircleGeometry(0.036, 20), pos: [x, CEIL_Y - 0.002, z] as V3, rot: [Math.PI / 2, 0, 0] as V3 }));
+    const ledgeGlow = new THREE.PlaneGeometry(RUN_S1 - RUN_S0 - 0.34, 0.36);
+    ledgeGlow.rotateX(-Math.PI / 2);
+    ledgeGlow.translate((RUN_S0 + RUN_S1) / 2 - 0.02, TOP + 0.0015, Z0 + 0.012 + 0.18);
+    // uv.y = 1 at the wall (under the ledge), fading toward the front of the worktop
+    const nicheGlow: Placed[] = [];
+    const bays = [NICHE.y0 + 0.025, NICHE.shelves[0] - 0.014, NICHE.shelves[0] + 0.014, NICHE.shelves[1] - 0.014, NICHE.shelves[1] + 0.014, NICHE.y1 - 0.025];
+    const span = nicheSpan();
+    for (let i = 0; i < bays.length; i += 2) {
+      const g = new THREE.PlaneGeometry(span.a1 - span.a0 - 0.06, bays[i + 1] - bays[i]);
+      nicheGlow.push({ geo: g, matrix: at(EAST, n.mid, (bays[i] + bays[i + 1]) / 2, 0.027) });
+    }
     const isl = island("island");
     const wf = island("waterfall");
     const s2 = stools(2);
@@ -526,6 +647,19 @@ export function Kitchen() {
       shakerPulls: merge(shaker.run.pulls),
       slab: merge(slab.run.fronts),
       slabPulls: merge(slab.run.pulls),
+      hlPulls: merge(hl.run.pulls),
+      pantryShaker: merge(shaker.pantry.fronts),
+      pantryShakerPulls: merge(shaker.pantry.pulls),
+      nicheLining: merge([...n.lining, ...n.shelves]),
+      nicheBack: merge(n.back),
+      nicheLed: merge(n.led),
+      nicheGlow: merge(nicheGlow),
+      toeStrips: merge(lp.strips),
+      toeGlow: merge(lp.glows),
+      isToeStrips: merge(lp.islandStrips),
+      isToeGlow: merge(lp.islandGlows),
+      ledgeGlow,
+      trims: merge(trims),
       appliance: merge(shaker.run.glass),
       channel: merge(channels()),
       iShaker: merge(shaker.island.fronts),
@@ -577,7 +711,7 @@ export function Kitchen() {
           case "concrete":
             return after(pbr("concrete_polished", { color: "#d9d4cc", roughness: 0.85, normalScale: 0.4, envMapIntensity: 0.35 }));
           default:
-            return after(pbr("calacatta", { roughness: 0.32, normalScale: 0.15, envMapIntensity: 0.5 }));
+            return after(pbr("calacatta_oro", { roughness: 1.25, normalScale: 0.2, envMapIntensity: 0.6 }));
         }
       });
     // butcher block gets a polished lime-plaster splash; stone and concrete run up the wall
@@ -593,7 +727,7 @@ export function Kitchen() {
           case "concrete":
             return after(pbr("concrete_polished", { color: "#cfcac2", roughness: 0.75, normalScale: 0.3, envMapIntensity: 0.4 }));
           default:
-            return after(pbr("oak_floor", { color: "#e6e1da", roughness: 0.95, envMapIntensity: 0.35 }));
+            return after(pbr("oak_floor", { color: "#cfc4b8", roughness: 0.7, envMapIntensity: 0.45 }));
         }
       });
     const walnut = () =>
@@ -606,6 +740,8 @@ export function Kitchen() {
         m.aoMap = arm;
         return m;
       });
+    // the niche lining: walnut with its grain running along the shelves (no rotated copies to wait for)
+    const nicheWood = () => L("nicheWood", () => after(pbr("walnut", { color: "#d9a57a", roughness: 0.7, envMapIntensity: 0.35 })));
     const beforeSet = () => ({
       oak: L("b-oak", () => before(pbr("oak_veneer", { color: "#d8b690", roughness: 0.5, envMapIntensity: 0.45 }))),
       granite: L("b-granite", () => before(pbr("black_granite", { color: "#d9b58c", roughness: 0.4, envMapIntensity: 0.5 }))),
@@ -623,6 +759,7 @@ export function Kitchen() {
       splash,
       floor,
       walnut,
+      nicheWood,
       beforeSet,
       paint: after(solid("#e8e2d6", 0.46, 0, { envMapIntensity: 0.35 })),
       brass: after(solid("#b8925c", 0.3, 1, { envMapIntensity: 0.7 })),
@@ -632,9 +769,16 @@ export function Kitchen() {
       steel: after(pbr("brushed_steel", { color: "#c9ccce", metalness: 1, roughness: 0.32, envMapIntensity: 0.7 })),
       tap: after(solid("#b8925c", 0.28, 1, { envMapIntensity: 0.8 })),
       blackGlass: after(solid("#070708", 0.05, 0, { envMapIntensity: 0.9 })),
-      leather: after(pbr("leather", { color: "#b77a4e", roughness: 0.7, envMapIntensity: 0.35 })),
+      // counter stools: charcoal bouclé seats
+      stoolSeat: after(pbr("boucle", { color: "#5b5854", roughness: 1, envMapIntensity: 0.25 })),
       stoolFrame: after(solid("#161514", 0.45, 0.7, { envMapIntensity: 0.4 })),
       led: after(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffe1c0"), emissiveIntensity: 6 })),
+      islandPaint: after(solid("#1d1d1f", 0.5, 0, { envMapIntensity: 0.4 })),
+      // light the LED strips throw: additive gradients (floor, niche backs, worktop)
+      toeGlow: patch(glowMaterial("#ffb877", 0.95), side("after")),
+      nicheGlow: patch(glowMaterial("#ffc58f", 1.25), side("after")),
+      ledgeGlow: patch(glowMaterial("#ffcf9e", 0.55), side("after")),
+      trim: patch(new THREE.MeshBasicMaterial({ color: new THREE.Color("#fff0dc").multiplyScalar(5) }), { cut: "solid" }),
       // the room itself does not change
       oak: shared(pbr("white_oak", { color: "#f2e9de", roughness: 0.85, envMapIntensity: 0.25 })),
       backing: shared(solid("#1a1816", 1, 0, { envMapIntensity: 0 })),
@@ -670,8 +814,11 @@ export function Kitchen() {
     intensity: 0.75,
   });
 
-  const style: Style = cfg.cabinets.includes("shaker") ? "shaker" : "slab";
+  const style: Style = cfg.cabinets.includes("shaker") ? "shaker" : cfg.cabinets === "walnut-slab" ? "slab" : "handleless";
   const cabMat = cfg.cabinets === "walnut-slab" ? mats.walnut() : mats.paint;
+  const islandMat = cfg.cabinets === "two-tone" ? mats.islandPaint : cabMat;
+  const nicheWood = mats.nicheWood();
+  const led = cfg.lighting;
   useEffect(() => {
     if (cfg.cabinets === "walnut-slab") return;
     const p = CAB_PAINT[cfg.cabinets];
@@ -680,6 +827,7 @@ export function Kitchen() {
   }, [cfg.cabinets, mats]);
 
   const pulls = style === "shaker" ? mats.brass : mats.bronze;
+  const runPulls = style === "shaker" ? geo.shakerPulls : style === "slab" ? geo.slabPulls : geo.hlPulls;
   const counter = mats.counter(cfg.counter);
   const splash = mats.splash(cfg.counter);
   const floorMat = mats.floor(cfg.floor);
@@ -721,25 +869,44 @@ export function Kitchen() {
       <mesh geometry={geo.floor} material={floorMat} position={floorPos} receiveShadow />
       <mesh geometry={geo.carcass} material={cabMat} {...sh} />
       <mesh geometry={style === "shaker" ? geo.shaker : geo.slab} material={cabMat} {...sh} />
-      <mesh geometry={style === "shaker" ? geo.shakerPulls : geo.slabPulls} material={pulls} castShadow />
-      {style === "slab" && <mesh geometry={geo.channel} material={mats.channel} />}
+      <mesh geometry={runPulls} material={pulls} castShadow />
+      {style !== "shaker" && <mesh geometry={geo.channel} material={mats.channel} />}
+      {/* the open niche in the tall bank */}
+      <mesh geometry={geo.nicheLining} material={nicheWood} {...sh} />
+      <mesh geometry={geo.nicheBack} material={nicheWood} receiveShadow />
+      {led && (
+        <>
+          <mesh geometry={geo.nicheLed} material={mats.led} />
+          <mesh geometry={geo.nicheGlow} material={mats.nicheGlow} renderOrder={3} />
+          <mesh geometry={geo.toeStrips} material={mats.led} />
+          <mesh geometry={geo.toeGlow} material={mats.toeGlow} renderOrder={3} />
+          <mesh geometry={geo.ledgeGlow} material={mats.ledgeGlow} renderOrder={3} />
+        </>
+      )}
+      <mesh geometry={geo.trims} material={mats.trim} />
       <mesh geometry={geo.appliance} material={mats.blackGlass} receiveShadow />
       <mesh geometry={geo.plinth} material={mats.plinth} />
       <mesh geometry={geo.worktop} material={counter} {...sh} />
       <mesh geometry={geo.splash} material={splash} receiveShadow />
       <mesh geometry={geo.ledge} material={splash} {...sh} />
-      <mesh geometry={geo.led} material={mats.led} />
+      {led && <mesh geometry={geo.led} material={mats.led} />}
       <mesh geometry={geo.sink} material={mats.steel} receiveShadow />
       <mesh geometry={geo.tap} material={mats.tap} castShadow />
       <mesh geometry={geo.hob} material={mats.blackGlass} receiveShadow />
       {hasIsland && (
         <>
-          <mesh geometry={wf ? geo.wfCarc : geo.isCarc} material={cabMat} {...sh} />
-          <mesh geometry={style === "shaker" ? geo.iShaker : geo.iSlab} material={cabMat} {...sh} />
+          <mesh geometry={wf ? geo.wfCarc : geo.isCarc} material={islandMat} {...sh} />
+          <mesh geometry={style === "shaker" ? geo.iShaker : geo.iSlab} material={islandMat} {...sh} />
+          {led && (
+            <>
+              <mesh geometry={geo.isToeStrips} material={mats.led} />
+              <mesh geometry={geo.isToeGlow} material={mats.toeGlow} renderOrder={3} />
+            </>
+          )}
           {style === "shaker" ? <mesh geometry={geo.iShakerPulls} material={pulls} castShadow /> : <mesh geometry={geo.iChannel} material={mats.channel} />}
           <mesh geometry={wf ? geo.wfTop : geo.isTop} material={counter} {...sh} />
           <mesh geometry={wf ? geo.wfPlinth : geo.isPlinth} material={mats.plinth} />
-          <mesh geometry={wf ? geo.seat3 : geo.seat2} material={mats.leather} {...sh} />
+          <mesh geometry={wf ? geo.seat3 : geo.seat2} material={mats.stoolSeat} {...sh} />
           <mesh geometry={wf ? geo.frame3 : geo.frame2} material={mats.stoolFrame} castShadow />
         </>
       )}
@@ -754,6 +921,8 @@ export function Kitchen() {
           <mesh geometry={geo.carcass} material={B.oak} {...sh} />
           <mesh geometry={geo.shaker} material={B.oak} {...sh} />
           <mesh geometry={geo.shakerPulls} material={B.brass} />
+          <mesh geometry={geo.pantryShaker} material={B.oak} {...sh} />
+          <mesh geometry={geo.pantryShakerPulls} material={B.brass} />
           <mesh geometry={geo.plinth} material={B.dark} />
           <mesh geometry={geo.worktop} material={B.granite} {...sh} />
           <mesh geometry={geo.sink} material={B.steel} />

@@ -64,7 +64,8 @@ vec2 skyUv(vec3 d) {
 vec3 blueHour(vec3 c, float up) {
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   vec3 s = max(mix(vec3(l), c, 1.4), 0.0);
-  return s * mix(vec3(1.0, 0.97, 0.98), vec3(0.6, 0.78, 1.34), smoothstep(-0.02, 0.6, up));
+  // a warm band on the horizon under a deep blue sky: the twilight gradient of the references
+  return s * mix(vec3(1.12, 0.93, 0.84), vec3(0.46, 0.7, 1.46), smoothstep(0.0, 0.42, up));
 }
 
 vec3 skyRadiance(vec3 d) {
@@ -80,7 +81,8 @@ function blueHourHorizon(c: THREE.Color) {
   const l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
   const k = 1.4;
   c.setRGB(Math.max(0, l + (c.r - l) * k), Math.max(0, l + (c.g - l) * k), Math.max(0, l + (c.b - l) * k));
-  return c.multiply(new THREE.Color().setRGB(0.98, 0.95, 1.0));
+  // the GLSL grade at ~8° elevation, where the horizon bins are read
+  return c.multiply(new THREE.Color().setRGB(0.98, 0.89, 0.97));
 }
 
 /**

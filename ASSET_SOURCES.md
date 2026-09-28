@@ -54,9 +54,7 @@ base; the black granite is graded from a pale one.
 | Tiles107 | Pool lining; "before" kitchen tile splash | Lennart Demes (ambientCG) | https://ambientcg.com/a/Tiles107 | CC0 1.0 |
 | Plaster001 | Interior plaster; lime-plaster splash | Lennart Demes (ambientCG) | https://ambientcg.com/a/Plaster001 | CC0 1.0 |
 | Metal032 | Brushed and galvanised steel: sink, steel frame | Lennart Demes (ambientCG) | https://ambientcg.com/a/Metal032 | CC0 1.0 |
-| Fabric061 | Rugs and bouclé upholstery | Lennart Demes (ambientCG) | https://ambientcg.com/a/Fabric061 | CC0 1.0 |
-| Leather037 | Counter-stool seats | Lennart Demes (ambientCG) | https://ambientcg.com/a/Leather037 | CC0 1.0 |
-| Marble019 | Worktop and slab backsplash: Calacatta | Lennart Demes (ambientCG) | https://ambientcg.com/a/Marble019 | CC0 1.0 |
+| Fabric061 | Rugs, bouclé upholstery and counter-stool seats | Lennart Demes (ambientCG) | https://ambientcg.com/a/Fabric061 | CC0 1.0 |
 | Granite002A | Worktop: black granite (graded); "before" speckled granite | Lennart Demes (ambientCG) | https://ambientcg.com/a/Granite002A | CC0 1.0 |
 | Marble025 | Floor option: large-format porcelain (1200×600 tiles) | Lennart Demes (ambientCG) | https://ambientcg.com/a/Marble025 | CC0 1.0 |
 
@@ -125,6 +123,8 @@ Loaded with `next/font/google` and self-hosted at build time.
 | Limestone cladding, pavers, porcelain, single-ply roof membrane, standing-seam pan | Composited from the scans above (the membrane from generated noise), `scripts/assets/build_textures.py` |
 | Leaf and sprig cards, bark LODs | Derived from the tree scans above, `scripts/assets/build_trees.py` and `.mjs` |
 | Solar cell pattern | Generated on the device, `three/proc.ts` |
+| Calacatta slab (worktops, splash, waterfall island) | Generated: tileable procedural marble, `scripts/assets/marble_gen.py` |
+| LED light falloff (plinth, niche, soffit coves) | Generated on the device, `three/glow.ts` |
 | Industry tile stills `public/previews/*.webp` | Rendered from the live scene, `scripts/og/previews.mjs` |
 | Share image `public/og.jpg`, no-WebGL poster `public/poster.jpg` | Rendered from the live scene, `scripts/og/render.mjs`, `scripts/og/poster.mjs` |
 | UI icons | Hand-drawn inline SVG, `components/icons.tsx` |

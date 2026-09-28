@@ -2,6 +2,7 @@ import type { IndustryId } from "./industries";
 import {
   BATTERY_EACH,
   CABINETS,
+  KITCHEN_LED,
   COATINGS,
   COUNTERS,
   FLOORS,
@@ -65,6 +66,7 @@ export function estimateFor(id: IndustryId, s: DemoState, units: UnitSystem): Es
       const isl = find(ISLANDS, c.island);
       let r: [number, number] = REMODEL_BASE;
       for (const p of [cab.price, top.price, fl.price, isl.price]) if (p) r = add(r, p);
+      if (c.lighting && KITCHEN_LED.price) r = add(r, KITCHEN_LED.price);
       return {
         low: r[0],
         high: r[1],
@@ -74,6 +76,7 @@ export function estimateFor(id: IndustryId, s: DemoState, units: UnitSystem): Es
           ["Countertops", top.label],
           ["Flooring", fl.label],
           ["Layout", isl.label],
+          ["Lighting", c.lighting ? "Integrated LED strips" : "Ceiling lights only"],
         ],
         notes: [],
       };

@@ -6,9 +6,10 @@ import * as THREE from "three";
 import { BALCONY, FLOOR_Y, MAIN, MAIN_ROOF, MAIN_TOP, WALL, WING, WING_ROOF, WING_TOP } from "@/lib/spec";
 import { emptyWindows, mergeGrouped, wallBand, windows, type WindowParts } from "./arch";
 import { box, merge, type Placed, type WallDef } from "./geom";
-import { interior, lampLit, registerLamps, unregisterLamps, type Lamp } from "./lamps";
+import { interior, lampLevel, lampLit, registerLamps, unregisterLamps, type Lamp } from "./lamps";
+import { glowMaterial } from "./glow";
 import { glass, pbr, solid } from "./materials";
-import { Roof } from "./Roof";
+import { Roof, ROOF_EDGE } from "./Roof";
 import { channels, depthFor, fades, ghostMaterial, patch, U } from "./shared";
 
 /**
@@ -145,6 +146,10 @@ const HOUSE_LAMPS: Lamp[] = [
   { pos: [5.3, 4.4, 0], color: "#ffbd78", power: 12, range: 5, group: "interior" }, // stair
 ];
 
+/** Undersides of the thin roof plates over the overhangs. */
+const ROOF_SOFFIT = MAIN_TOP - ROOF_EDGE;
+const WING_SOFFIT = WING_TOP - ROOF_EDGE;
+
 /**
  * Downlights in the soffits: under the balcony (lighting the ground-floor glass and the terrace),
  * under the roof overhang (the balcony and the upper glass), and under the pavilion's canopy.
@@ -153,9 +158,9 @@ const HOUSE_LAMPS: Lamp[] = [
 export const SOFFIT_LIGHTS: [number, number, number][] = [
   ...[-3.3, -1.1, 1.1, 3.3].map((z): [number, number, number] => [-7.0, L2 - BALCONY.t - 0.01, z]),
   ...[-5.3, -3.4, -1.6].map((x): [number, number, number] => [x, L2 - BALCONY.t - 0.01, -4.9]),
-  ...[-2.9, 0.2, 3.3].map((z): [number, number, number] => [-7.2, E - 0.01, z]),
-  ...[-5.2, -3.2, -1.3].map((x): [number, number, number] => [x, E - 0.01, -5.15]),
-  ...[-13.2, -11.0, -8.8, -6.6].map((z): [number, number, number] => [-1.8, WING.eave - 0.01, z]),
+  ...[-2.9, 0.2, 3.3].map((z): [number, number, number] => [-7.2, ROOF_SOFFIT - 0.004, z]),
+  ...[-5.2, -3.2, -1.3].map((x): [number, number, number] => [x, ROOF_SOFFIT - 0.004, -5.15]),
+  ...[-13.2, -11.0, -8.8, -6.6].map((z): [number, number, number] => [-1.8, WING_SOFFIT - 0.004, z]),
 ];
 const SOFFIT_LAMPS: Lamp[] = SOFFIT_LIGHTS.map(([x, y, z]) => ({
   pos: [x, y - 0.03, z],
@@ -303,8 +308,8 @@ function slabsAndSoffits() {
   edge.push({ geo: box(MAIN.x1 - MAIN.x0 + 0.08, band, 0.04), pos: [(MAIN.x0 + MAIN.x1) / 2, (C1 + L2) / 2, MAIN.z1 + 0.02] });
   edge.push({ geo: box(0.04, band, MAIN.z1 - MAIN.z0 + 0.08), pos: [MAIN.x1 + 0.02, (C1 + L2) / 2, (MAIN.z0 + MAIN.z1) / 2] });
   // soffits under the roof slab and the pavilion's canopy (inside, the ceilings hide them)
-  soffit.push({ geo: box(MAIN_ROOF.x1 - MAIN_ROOF.x0, 0.01, MAIN_ROOF.z1 - MAIN_ROOF.z0), pos: [(MAIN_ROOF.x0 + MAIN_ROOF.x1) / 2, E - 0.012, (MAIN_ROOF.z0 + MAIN_ROOF.z1) / 2] });
-  soffit.push({ geo: box(WING_ROOF.x1 - WING_ROOF.x0, 0.01, WING_ROOF.z1 - WING_ROOF.z0), pos: [(WING_ROOF.x0 + WING_ROOF.x1) / 2, WING.eave - 0.012, (WING_ROOF.z0 + WING_ROOF.z1) / 2] });
+  soffit.push({ geo: box(MAIN_ROOF.x1 - MAIN_ROOF.x0, 0.01, MAIN_ROOF.z1 - MAIN_ROOF.z0), pos: [(MAIN_ROOF.x0 + MAIN_ROOF.x1) / 2, ROOF_SOFFIT - 0.006, (MAIN_ROOF.z0 + MAIN_ROOF.z1) / 2] });
+  soffit.push({ geo: box(WING_ROOF.x1 - WING_ROOF.x0, 0.01, WING_ROOF.z1 - WING_ROOF.z0), pos: [(WING_ROOF.x0 + WING_ROOF.x1) / 2, WING_SOFFIT - 0.006, (WING_ROOF.z0 + WING_ROOF.z1) / 2] });
   // frameless glass balustrade in a low bronze shoe, round the balcony's open edges
   const rh = BALCONY.rail;
   const gy = L2 + 0.02 + rh / 2;
@@ -331,6 +336,37 @@ function slabsAndSoffits() {
     railShoe.push({ geo: along ? box(len, 0.08, 0.06) : box(0.06, 0.08, len), pos: [cx, L2 + 0.06, cz] });
   }
   return { edge, soffit, deck, rail, railShoe };
+}
+
+/**
+ * A linear LED cove just inside the fascia of the roof and the pavilion canopy (the garden and
+ * west edges), and the warm wash it throws across the soffit.
+ */
+function soffitCoves() {
+  const strips: Placed[] = [];
+  const wash: Placed[] = [];
+  const inset = 0.16;
+  const reach = 1.7;
+  // [x0, z0, x1, z1, y, outward]: outward is the fascia side (-x west, -z garden)
+  const edges: [number, number, number, number, number, "x" | "z"][] = [
+    [MAIN_ROOF.x0 + inset, MAIN_ROOF.z0 + inset, MAIN_ROOF.x0 + inset, MAIN_ROOF.z1 - inset, ROOF_SOFFIT, "x"],
+    [MAIN_ROOF.x0 + inset, MAIN_ROOF.z0 + inset, MAIN_ROOF.x1 - inset, MAIN_ROOF.z0 + inset, ROOF_SOFFIT, "z"],
+    [WING_ROOF.x0 + inset, WING_ROOF.z0 + inset, WING_ROOF.x0 + inset, WING_ROOF.z1, WING_SOFFIT, "x"],
+    [WING_ROOF.x0 + inset, WING_ROOF.z0 + inset, WING_ROOF.x1 - inset, WING_ROOF.z0 + inset, WING_SOFFIT, "z"],
+  ];
+  for (const [x0, z0, x1, z1, y, out] of edges) {
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    // a diffused profile, wide enough to stay one continuous line at any distance
+    strips.push({ geo: out === "z" ? box(len, 0.008, 0.05) : box(0.05, 0.008, len), pos: [cx, y - 0.014, cz] });
+    // facing down, uv.y = 1 on the LED line, fading in toward the house
+    const g = new THREE.PlaneGeometry(len, reach);
+    g.rotateX(Math.PI / 2);
+    g.rotateY(out === "x" ? -Math.PI / 2 : Math.PI);
+    wash.push({ geo: g, pos: out === "x" ? [cx + reach / 2, y - 0.0115, cz] : [cx, y - 0.0115, cz + reach / 2] });
+  }
+  return { strips, wash };
 }
 
 function buildGeometry() {
@@ -361,6 +397,7 @@ function buildGeometry() {
   const ig = interiorGeometry();
   const fu = furniture();
   const ss = slabsAndSoffits();
+  const cv = soffitCoves();
   return {
     stone: mergeGrouped([...main, ...wing]),
     glassWall: mergeGrouped(gw ? [gw] : []),
@@ -378,6 +415,8 @@ function buildGeometry() {
     ceilingDots: merge(ceilingDots),
     edge: merge(ss.edge),
     soffit: merge(ss.soffit),
+    coveStrips: merge(cv.strips),
+    coveWash: merge(cv.wash),
     deck: merge(ss.deck),
     rail: merge(ss.rail),
     railShoe: merge(ss.railShoe),
@@ -417,8 +456,10 @@ export function House() {
     const cut = <T extends THREE.Material>(m: T, fade?: { value: number }) => patch(m, fade ? { cut: "solid", fade } : SOLID);
     const stoneP = { roughness: 1, envMapIntensity: 0.9 };
     const ext = <T extends THREE.MeshStandardMaterial>(m: T) => lampLit(m, ["exterior"]);
-    const bronze = () => solid("#2a2723", 0.42, 0.75, { envMapIntensity: 1.1 });
-    const plaster = () => interior(pbr("plaster", { color: "#f1e9dc", roughness: 1, envMapIntensity: 0.25 }));
+    // frames, slab edges, canopy: near-black charcoal aluminium
+    const bronze = () => solid("#212224", 0.45, 0.5, { envMapIntensity: 1.0 });
+    // warm plaster inside; the pavilion's walls take the kitchen's lamps too
+    const plaster = () => lampLit(pbr("plaster", { color: "#ebdfcf", roughness: 1, envMapIntensity: 0.22 }), ["interior", "kitchen"]);
     return {
       stone: cut(ext(pbr("limestone", stoneP))),
       plaster: cut(plaster()),
@@ -434,9 +475,11 @@ export function House() {
       aperture: new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffd9a8").multiplyScalar(6) }),
       ceilingDot: new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffe2bf").multiplyScalar(5) }),
       // slab edges: dark bronze, as the frames
-      edge: cut(ext(solid("#24221f", 0.5, 0.55, { envMapIntensity: 0.9 }))),
-      // soffits: pale plaster, lit by the downlights set into them (the wrap term gives each a halo)
-      soffit: cut(lampLit(solid("#f3eee6", 0.95, 0, { envMapIntensity: 0.45 }), ["exterior", "garden"])),
+      edge: cut(ext(solid("#1e1f21", 0.55, 0.3, { envMapIntensity: 0.8 }))),
+      // soffits: warm cedar boards, lit by the downlights set into them and the cove at the edge
+      soffit: cut(lampLit(pbr("cedar", { color: "#e9cfb4", roughness: 0.9, envMapIntensity: 0.5 }), ["exterior", "garden"])),
+      coveStrip: cut(new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffd9ae").multiplyScalar(6) })),
+      coveWash: cut(glowMaterial("#ffbf85", 1)),
       deck: cut(ext(pbr("paver_stone", { roughness: 1, envMapIntensity: 0.8 }))),
       rail: glass({ transmittance: 0.9, envMapIntensity: 1.3 }),
       floor: cut(interior(pbr("oak_floor", { color: "#e9d2b6", roughness: 0.75, envMapIntensity: 0.45 }))),
@@ -475,6 +518,7 @@ export function House() {
   const depthSolid = useMemo(() => depthFor({ cut: "solid" }), []);
   const depthFade = useMemo(() => depthFor({ cut: "solid", fade: fades.glassWall, fadeKey: "glassWall" }), []);
   const ghostGroup = useRef<THREE.Group>(null);
+  const coves = useRef<THREE.Group>(null);
   const glassGroup = useRef<THREE.Group>(null);
 
   useFrame(() => {
@@ -483,6 +527,10 @@ export function House() {
     const on = THREE.MathUtils.smoothstep(channels.dusk, 0.15, 0.55);
     mats.glow.emissiveIntensity = 0.4 + on * 3.4;
     mats.ceilingDot.color.setRGB(1, 0.886, 0.75).multiplyScalar(0.6 + on * 4.6);
+    const ext = lampLevel("exterior");
+    mats.coveStrip.color.setRGB(1, 0.82, 0.62).multiplyScalar(0.25 + ext * 2.6);
+    mats.coveWash.color.setRGB(1, 0.72, 0.48).multiplyScalar(ext * 2.2);
+    coves.current && (coves.current.visible = ext > 0.02 || channels.dusk > 0.3);
     if (ghostGroup.current) ghostGroup.current.visible = channels.ghost > 0.01;
     if (glassGroup.current) glassGroup.current.visible = channels.glassWall > 0.01;
   });
@@ -503,6 +551,10 @@ export function House() {
       <mesh geometry={geo.canopySoffit} material={mats.canopySoffit} receiveShadow />
       <mesh geometry={geo.edge} material={mats.edge} {...solidProps} />
       <mesh geometry={geo.soffit} material={mats.soffit} receiveShadow />
+      <group ref={coves}>
+        <mesh geometry={geo.coveStrips} material={mats.coveStrip} />
+        <mesh geometry={geo.coveWash} material={mats.coveWash} renderOrder={3} />
+      </group>
       <mesh geometry={geo.deck} material={mats.deck} receiveShadow />
       <mesh geometry={geo.railShoe} material={mats.frame} castShadow />
       <mesh geometry={geo.rail} material={mats.rail} renderOrder={2} />

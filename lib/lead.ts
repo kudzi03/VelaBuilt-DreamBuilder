@@ -119,7 +119,7 @@ export function buildLead(id: IndustryId, s: DemoState, units: UnitSystem): Lead
       const top = COUNTERS.find((x) => x.id === s.remodeling.counter)!;
       const fl = FLOORS.find((x) => x.id === s.remodeling.floor)!;
       message = `Hi ${first}, it's ${signed} Love the kitchen you designed — ${cab.label.toLowerCase()} ${cab.detail?.toLowerCase()} cabinets with ${top.label.toLowerCase()}, around ${rangeText}. Want to walk through it together at home?`;
-      job = `Kitchen remodel · order list drafted: ${cab.label} ${cab.detail}, ${top.label}, ${fl.label}`;
+      job = `Kitchen remodel · order list drafted: ${cab.label} ${cab.detail}, ${top.label}, ${fl.label}${s.remodeling.lighting ? ", LED strip kit" : ""}`;
       break;
     }
     case "steel": {
