@@ -55,7 +55,7 @@ export const metadata: Metadata = {
         width: 1200,
         height: 630,
         type: "image/jpeg",
-        alt: "A house split down the middle: the old mossy roof on one side, the new standing-seam roof and its estimate on the other — The Future of Contractor Sales, an interactive demo by VelaBuilt",
+        alt: "A modern two-storey glass house at blue hour, lit from inside and reflected in its pool, under the headline: What if your customers could experience your work before they ever called you? — an interactive demo by VelaBuilt",
       },
     ],
   },
