@@ -41,11 +41,14 @@
     },
     "concrete_floor_02": {
       "use": "Concrete: steel footings, before-garden slab"
+    },
+    "castle_wall_slates": {
+      "use": "Stone base: coursed slate veneer (house plinth walls, kitchen-wing piers)"
     }
   },
   "ambientcg_textures": {
     "Travertine009": {
-      "use": "Limestone cladding, terrace pavers, pool coping"
+      "use": "Terrace pavers and pool coping"
     },
     "Concrete034": {
       "use": "Polished concrete worktop, floor and splash"

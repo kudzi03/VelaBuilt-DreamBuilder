@@ -367,11 +367,32 @@ def marble(tid, src, meters, sizes=(1024, 512), contrast=1.0, note="", **g):
     return save_set(tid, to_srgb(lin), n, a, meters, sizes, note)
 
 
+def slate_veneer(tid, src, meters, sizes=(1024, 512)):
+    """Coursed slate veneer from a laid-wall scan. The scan's one pale block would repeat every
+    tile width along a facade, so it is covered with a feathered copy of ordinary coursing
+    (same rows, shifted along them) in every map."""
+    c = grade(load(src, "diff"), saturation=0.8, gain=1.12, warmth=0.03)
+    h, w = c.shape[:2]
+    n = load(src, "nor", (w, h))
+    a = arm_of(src, (h, w))
+    # pale block at x 0.125-0.24, y 0.43-0.54 of the tile; donor: the same rows, 0.49 further along
+    x0, x1, y0, y1 = (int(round(f * w)) for f in (0.115, 0.25, 0.42, 0.55))
+    dx = int(round(0.49 * w))
+    f = 12
+    yy, xx = np.mgrid[y0:y1, x0:x1]
+    wgt = np.minimum.reduce([xx - x0, x1 - 1 - xx, yy - y0, y1 - 1 - yy]).astype(np.float32)
+    wgt = np.clip(wgt / f, 0, 1)[..., None]
+    for m in (c, n, a):
+        m[y0:y1, x0:x1] = m[y0:y1, x0:x1] * (1 - wgt) + m[y0:y1, x0 + dx : x1 + dx] * wgt
+    return save_set(tid, c, n, a, meters, sizes, "coursed slate veneer")
+
+
 # ---------------------------------------------------------------- catalogue
 
 BUILD = {
     # exterior
-    "clad_stone": lambda: stone_panels("clad_stone", "Travertine009", (2.4, 1.2), (1.2, 0.6), 0.006, 853, "running", 0.06, 0.08, "limestone cladding, 1200x600 panels"),
+    # coursed slate veneer: a real laid wall reads as stone at every distance; sawn panels read as tiles
+    "clad_stone": lambda: slate_veneer("clad_stone", "castle_wall_slates", (2.5, 2.5)),
     "paver_stone": lambda: stone_panels("paver_stone", "Travertine009", (1.8, 1.2), (0.9, 0.6), 0.004, 853, "stack", 0.05, 0.15, "limestone pavers 900x600, stack bond"),
     "cedar": lambda: plain("cedar", "japanese_cedar_planks", (1.13, 1.13), saturation=0.55, gain=0.92, warmth=-0.02),
     "shingle": lambda: shingles("shingle"),

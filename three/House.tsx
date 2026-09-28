@@ -3,7 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { FLOOR_Y, MAIN, MAIN_RIDGE_Y, MAIN_RIDGE_Z, ROOF_PLANES, WALL, WING, WING_RIDGE_X, WING_RIDGE_Y } from "@/lib/spec";
+import { FLOOR_Y, MAIN, MAIN_RIDGE_Y, MAIN_RIDGE_Z, MAIN_TAN, ROOF_PLANES, WALL, WING, WING_RIDGE_X, WING_RIDGE_Y, WING_TAN } from "@/lib/spec";
 import { emptyWindows, mergeGrouped, wallBand, windows, type WindowParts } from "./arch";
 import { box, merge, roofSurface, type Placed, type WallDef } from "./geom";
 import { interior, lampLit, registerLamps, unregisterLamps, type Lamp } from "./lamps";
@@ -146,6 +146,34 @@ const FACADE_LAMPS: Lamp[] = FACADE_LIGHTS.map(([x, y, z, ax, sg]) => ({
   group: "exterior",
 }));
 
+/**
+ * Recessed downlights in the eaves, ~20 cm out from the wall: each throws a warm cone down the
+ * facade, the scallops that make dusk architectural photographs. [x, y, z]
+ */
+export const SOFFIT_LIGHTS: [number, number, number][] = [
+  // kitchen wing, garden eave: over the stone piers of the glass wall and the terrace
+  ...[-13.1, -11.2, -9.3, -7.4, -5.5].map((z): [number, number, number] => [WING.x0 - 0.2, WING.eave - 0.2 * WING_TAN - 0.06, z]),
+  // main house, garden side, west of the wing
+  ...[-5.35, -3.95, -2.55].map((x): [number, number, number] => [x, MAIN.eave - 0.2 * MAIN_TAN - 0.06, MAIN.z0 - 0.2]),
+];
+const SOFFIT_LAMPS: Lamp[] = SOFFIT_LIGHTS.map(([x, y, z]) => ({
+  pos: [x, y, z],
+  color: "#ffd3a0",
+  power: 14,
+  range: 5.4,
+  group: "exterior",
+  cone: { dir: [0, -1, 0], inner: 16, outer: 40 },
+}));
+
+/** Pleated sheer curtain, drawn to one side: folds every ~14 cm. Local: width along x, faces +z. */
+function curtain(w: number, h: number) {
+  const g = new THREE.PlaneGeometry(w, h, Math.max(8, Math.round(w / 0.035)), 1);
+  const p = g.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin((p.getX(i) / 0.14) * Math.PI * 2) * 0.035);
+  g.computeVertexNormals();
+  return g;
+}
+
 function wallsOf(defs: WallDef[], bands: (d: WallDef) => { lower: Parameters<typeof wallBand>[1]; upper?: Parameters<typeof wallBand>[1] }) {
   const lower: THREE.BufferGeometry[] = [];
   const upper: THREE.BufferGeometry[] = [];
@@ -279,6 +307,20 @@ function buildGeometry() {
     apertures.push({ geo: new THREE.CircleGeometry(0.036, 20), pos: [px, y + 0.111, pz], rot: [-Math.PI / 2, 0, 0] });
   }
 
+  // downlight trims in the eaves
+  for (const [x, y, z] of SOFFIT_LIGHTS) apertures.push({ geo: new THREE.CircleGeometry(0.042, 20), pos: [x, y - 0.012, z], rot: [Math.PI / 2, 0, 0] });
+
+  // sheers in the upstairs windows the garden sees, drawn back to the sides
+  const sheer: Placed[] = [];
+  const ch = MAIN.eave - 0.14 - (L2 + 0.05);
+  const cy = L2 + 0.05 + ch / 2;
+  const southZ = MAIN.z0 + S + 0.07;
+  sheer.push({ geo: curtain(0.9, ch), pos: [-4.85, cy, southZ] });
+  sheer.push({ geo: curtain(0.9, ch), pos: [-2.55, cy, southZ] });
+  const westX = MAIN.x0 + S + 0.07;
+  sheer.push({ geo: curtain(0.75, ch), pos: [westX, cy, -0.78], rot: [0, Math.PI / 2, 0] });
+  sheer.push({ geo: curtain(0.75, ch), pos: [westX, cy, 0.78], rot: [0, Math.PI / 2, 0] });
+
   const ig = interiorGeometry();
   const fu = furniture();
   return {
@@ -308,6 +350,7 @@ function buildGeometry() {
     rug: merge(fu.rug),
     glow: merge(fu.glow),
     art: merge(fu.art),
+    sheer: merge(sheer),
   };
 }
 
@@ -353,8 +396,10 @@ export function House() {
       rug: cut(interior(pbr("boucle", { color: "#cbbfae", roughness: 1, envMapIntensity: 0.2 }))),
       glow: cut(new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffc38a"), emissiveIntensity: 3.2, roughness: 1, side: THREE.DoubleSide })),
       art: cut(interior(solid("#8d8479", 0.8, 0, { envMapIntensity: 0.2 }))),
+      // sheer linen: lit by the room's lamps, glowing a little as the evening comes on
+      sheer: cut(interior(new THREE.MeshStandardMaterial({ color: "#efe5d7", roughness: 1, transparent: true, opacity: 0.8, side: THREE.DoubleSide, emissive: new THREE.Color("#ffc890"), emissiveIntensity: 0, depthWrite: false }))),
       // glass-wall set: dither-fades while the camera walks through into the kitchen
-      gwStone: cut(pbr("clad_stone", stoneP), fades.glassWall),
+      gwStone: cut(ext(pbr("clad_stone", stoneP)), fades.glassWall),
       gwPlaster: cut(plaster(), fades.glassWall),
       gwReveal: cut(bronze(), fades.glassWall),
       gwFrame: cut(bronze(), fades.glassWall),
@@ -366,8 +411,8 @@ export function House() {
   useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
 
   useEffect(() => {
-    registerLamps([...HOUSE_LAMPS, ...FACADE_LAMPS]);
-    return () => unregisterLamps([...HOUSE_LAMPS, ...FACADE_LAMPS]);
+    registerLamps([...HOUSE_LAMPS, ...FACADE_LAMPS, ...SOFFIT_LAMPS]);
+    return () => unregisterLamps([...HOUSE_LAMPS, ...FACADE_LAMPS, ...SOFFIT_LAMPS]);
   }, []);
 
   const ghostRoof = useMemo(() => merge(ROOF_PLANES.map((p) => ({ geo: roofSurface(p, ROOF_T) }))), []);
@@ -386,6 +431,7 @@ export function House() {
     // lamps glow brighter as the evening comes on
     const on = THREE.MathUtils.smoothstep(channels.dusk, 0.15, 0.55);
     mats.glow.emissiveIntensity = 0.4 + on * 3.4;
+    mats.sheer.emissiveIntensity = on * 0.22;
     if (ghostGroup.current) ghostGroup.current.visible = channels.ghost > 0.01;
     if (glassGroup.current) glassGroup.current.visible = channels.glassWall > 0.01;
   });
@@ -419,6 +465,7 @@ export function House() {
       <mesh geometry={geo.rug} material={mats.rug} receiveShadow />
       <mesh geometry={geo.glow} material={mats.glow} />
       <mesh geometry={geo.art} material={mats.art} />
+      <mesh geometry={geo.sheer} material={mats.sheer} renderOrder={1} />
       <group ref={glassGroup}>
         <mesh geometry={geo.glassWall} material={[mats.gwStone, mats.gwPlaster, mats.gwReveal]} castShadow receiveShadow customDepthMaterial={depthFade} />
         <mesh geometry={geo.gwFrames} material={mats.gwFrame} castShadow customDepthMaterial={depthFade} />

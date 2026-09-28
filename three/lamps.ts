@@ -1,14 +1,15 @@
 import * as THREE from "three";
 
 /**
- * Lamps without scene lights. Interiors seen through the glazing, facade wall-washers,
- * the kitchen and the garden are lit by these; only materials passed through `lampLit()`
- * evaluate them, and each material only the categories it cares about. Positions are
- * transformed to view space once per frame on the CPU. Diffuse + GGX specular with smooth
- * range falloff, using three's own BRDF functions.
+ * Lamps without scene lights. Interiors seen through the glazing, facade wall-washers, soffit
+ * downlights, the kitchen and the garden are lit by these; only materials passed through
+ * `lampLit()` evaluate them, and each material only the categories it cares about. Positions
+ * (and cone directions) are transformed to view space once per frame on the CPU. Diffuse + GGX
+ * specular with smooth range falloff, using three's own BRDF functions. A lamp with a `cone` is
+ * a spot: a recessed downlight throws the scallop of light architectural photographs are made of.
  */
 
-export const MAX_LAMPS = 32;
+export const MAX_LAMPS = 40;
 export type LampGroup = "interior" | "exterior" | "kitchen" | "garden";
 const BIT: Record<LampGroup, number> = { interior: 1, exterior: 2, kitchen: 4, garden: 8 };
 
@@ -20,11 +21,17 @@ export interface Lamp {
   /** metres to zero */
   range: number;
   group: LampGroup;
+  /** spot: aim (world) and half-angle in degrees of the full-intensity core and the soft edge */
+  cone?: { dir: [number, number, number]; inner: number; outer: number };
 }
 
 export const LAMP_UNIFORMS = {
   uLampPos: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector3()) },
   uLampCol: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector4()) },
+  /** xyz: aim in view space; w: cos(outer) (or -2 for no cone) */
+  uLampDir: { value: Array.from({ length: MAX_LAMPS }, () => new THREE.Vector4(0, 0, 0, -2)) },
+  /** cos(inner) */
+  uLampIn: { value: new Float32Array(MAX_LAMPS) },
   uLampBits: { value: new Int32Array(MAX_LAMPS) },
   uLampCount: { value: 0 },
 };
@@ -51,6 +58,7 @@ export function setLampLevels(next: Partial<Record<LampGroup, number>>) {
 
 const _c = new THREE.Color();
 const _v = new THREE.Vector3();
+const DEG = Math.PI / 180;
 function syncColors() {
   LAMP_UNIFORMS.uLampCount.value = lamps.length;
   lamps.forEach((l, i) => {
@@ -58,18 +66,29 @@ function syncColors() {
     const k = l.power * level[l.group];
     LAMP_UNIFORMS.uLampCol.value[i].set(_c.r * k, _c.g * k, _c.b * k, l.range);
     LAMP_UNIFORMS.uLampBits.value[i] = BIT[l.group];
+    LAMP_UNIFORMS.uLampDir.value[i].w = l.cone ? Math.cos(l.cone.outer * DEG) : -2;
+    LAMP_UNIFORMS.uLampIn.value[i] = l.cone ? Math.cos(l.cone.inner * DEG) : -1;
   });
 }
 
 /** Call once per frame (before rendering) with the active camera. */
 export function updateLampViewPositions(camera: THREE.Camera) {
-  lamps.forEach((l, i) => LAMP_UNIFORMS.uLampPos.value[i].copy(_v.set(...l.pos).applyMatrix4(camera.matrixWorldInverse)));
+  lamps.forEach((l, i) => {
+    LAMP_UNIFORMS.uLampPos.value[i].copy(_v.set(...l.pos).applyMatrix4(camera.matrixWorldInverse));
+    if (l.cone) {
+      _v.set(...l.cone.dir).normalize().transformDirection(camera.matrixWorldInverse);
+      const d = LAMP_UNIFORMS.uLampDir.value[i];
+      d.set(_v.x, _v.y, _v.z, d.w);
+    }
+  });
 }
 
 const HEAD = /* glsl */ `
 #define VB_MAX_LAMPS ${MAX_LAMPS}
 uniform vec3 uLampPos[VB_MAX_LAMPS];
 uniform vec4 uLampCol[VB_MAX_LAMPS];
+uniform vec4 uLampDir[VB_MAX_LAMPS];
+uniform float uLampIn[VB_MAX_LAMPS];
 uniform int uLampBits[VB_MAX_LAMPS];
 uniform int uLampCount;
 uniform int uLampMask;
@@ -85,6 +104,8 @@ for (int i = 0; i < VB_MAX_LAMPS; i++) {
   if (ld > range) continue;
   vec3 L = lv / ld;
   float fall = pow2(saturate(1.0 - pow4(ld / range))) / (1.0 + ld * ld * 0.6);
+  vec4 cone = uLampDir[i];
+  if (cone.w > -1.5) fall *= smoothstep(cone.w, uLampIn[i], dot(-L, cone.xyz));
   vec3 radiance = uLampCol[i].rgb * fall;
   float nl = saturate(dot(geometryNormal, L));
   reflectedLight.directDiffuse += radiance * (nl * 0.85 + 0.15 * float(uLampMask != 2)) * BRDF_Lambert(material.diffuseColor);

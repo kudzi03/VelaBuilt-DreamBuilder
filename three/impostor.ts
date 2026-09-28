@@ -136,6 +136,17 @@ function uniformsFor(id: PlantId) {
   return { uImpN: { value: r.N }, uImpR: { value: r.radius }, uImpCY: { value: r.center[1] } };
 }
 
+/** Foliage light response: wrapped diffuse and backlit translucency (shared with the 3D trees). */
+export const FOLIAGE_LIGHT = /* glsl */ `#include <lights_physical_pars_fragment>
+void RE_Direct_Foliage( const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight ) {
+  float nl = dot(geometryNormal, directLight.direction);
+  float wrap = saturate((nl + 0.45) / 1.45);
+  float back = pow(saturate(dot(geometryViewDir, -directLight.direction)), 3.0) * 0.55;
+  reflectedLight.directDiffuse += (wrap + back) * directLight.color * BRDF_Lambert(material.diffuseColor);
+}
+#undef RE_Direct
+#define RE_Direct RE_Direct_Foliage`;
+
 /** Lit colour material (MeshStandardMaterial underneath: sun, IBL, shadows, fog all apply). */
 export function impostorMaterial(id: PlantId, hiRes: boolean) {
   const r = plant(id);
@@ -173,18 +184,7 @@ export function impostorMaterial(id: PlantId, hiRes: boolean) {
         normal = normalize((viewMatrix * vec4(impNW, 0.0)).xyz);
         float impShade = clamp(impN.a, 0.0, 1.0);`,
       )
-      .replace(
-        "#include <lights_physical_pars_fragment>",
-        `#include <lights_physical_pars_fragment>
-        void RE_Direct_Foliage( const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight ) {
-          float nl = dot(geometryNormal, directLight.direction);
-          float wrap = saturate((nl + 0.45) / 1.45);
-          float back = pow(saturate(dot(geometryViewDir, -directLight.direction)), 3.0) * 0.55;
-          reflectedLight.directDiffuse += (wrap + back) * directLight.color * BRDF_Lambert(material.diffuseColor);
-        }
-        #undef RE_Direct
-        #define RE_Direct RE_Direct_Foliage`,
-      )
+      .replace("#include <lights_physical_pars_fragment>", FOLIAGE_LIGHT)
       .replace(
         "#include <aomap_fragment>",
         `#include <aomap_fragment>

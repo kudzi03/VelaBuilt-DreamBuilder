@@ -5,11 +5,11 @@ import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { GARDEN as G, MAIN, WING } from "@/lib/spec";
-import { textureSizeFor, TIERS } from "@/lib/quality";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty, SKY_GLSL, SKY_UNIFORMS } from "./Atmosphere";
 import { box, merge, rbox, type Placed } from "./geom";
-import { buildImpostors, setCoverage, type PlantId, type PlantPlacement } from "./impostor";
+import { type PlantPlacement } from "./impostor";
+import { PlantField } from "./plantfield";
 import { lampLit, registerLamps, unregisterLamps, updateLampViewPositions, type Lamp } from "./lamps";
 import { sharedGround } from "./Landscape";
 import { pbr, solid } from "./materials";
@@ -37,11 +37,12 @@ const GARDEN_LAMPS: Lamp[] = [
   { pos: [(PL.x0 + PL.x1) / 2, -0.9, (PL.z0 + PL.z1) / 2 + 1.5], color: "#a6ecf7", power: 5.5, range: 7, group: "garden" },
   // pergola: warm downlight over the seating
   { pos: [(PG.x0 + PG.x1) / 2, PG.h - 0.35, (PG.z0 + PG.z1) / 2], color: "#ffbd78", power: 10, range: 6, group: "garden" },
-  // path bollards and tree uplights
+  // path bollards
   { pos: [-7.2, 0.45, -5.4], color: "#ffc27f", power: 3, range: 2.4, group: "garden" },
   { pos: [-10.3, 0.45, -5.4], color: "#ffc27f", power: 3, range: 2.4, group: "garden" },
-  { pos: [-13.6, 0.4, -5.2], color: "#ffc98a", power: 6, range: 5.5, group: "garden" },
-  { pos: [-3.6, 0.4, -14.6], color: "#ffc98a", power: 6, range: 5.5, group: "garden" },
+  // uplights at the feet of the planting: warm cones up into the crowns
+  { pos: [-13.6, 0.25, -5.2], color: "#ffc98a", power: 12, range: 5.5, group: "garden", cone: { dir: [0.1, 1, 0], inner: 20, outer: 48 } },
+  { pos: [-2.9, 0.25, -17.5], color: "#ffcc90", power: 30, range: 7.5, group: "garden", cone: { dir: [0.05, 1, -0.08], inner: 18, outer: 42 } },
 ];
 
 function poolShell(): Placed[] {
@@ -188,7 +189,6 @@ export function Garden() {
   const phase = useDemo((s) => s.phase);
   const tier = useDemo((s) => s.tier);
   const hi = tier !== "low";
-  const sharp = textureSizeFor(tier) === 1024;
   const beforeOn = compare && industry === "landscaping" && phase === "explore";
   const lights = useRef<THREE.Group>(null);
 
@@ -252,22 +252,7 @@ export function Garden() {
     };
   }, []);
 
-  const plants = useMemo(() => {
-    const pl = planting();
-    const build = (rec: Record<string, PlantPlacement[]>) => Object.entries(rec).filter(([, l]) => l.length).map(([id, l]) => buildImpostors(id as PlantId, l, sharp));
-    return { core: build(pl.core), lush: build(pl.lush) };
-  }, [sharp]);
-  const msaa = TIERS[tier].msaa > 0;
-  useEffect(() => setCoverage([...plants.core, ...plants.lush], msaa), [plants, msaa]);
-  useEffect(
-    () => () =>
-      [...plants.core, ...plants.lush].forEach((m) => {
-        m.geometry.dispose();
-        (m.material as THREE.Material).dispose();
-        m.customDepthMaterial?.dispose();
-      }),
-    [plants],
-  );
+  const plants = useMemo(() => planting(), []);
 
   const lazy = useMemo(() => lazyCache<THREE.Material>(), []);
   const mats = useMemo(() => {
@@ -278,7 +263,8 @@ export function Garden() {
       stone: s(lit(pbr("paver_stone", { roughness: 1, envMapIntensity: 0.8 }))),
       coping: s(lit(pbr("paver_stone", { roughness: 1, envMapIntensity: 0.8 }))),
       // the shell is only ever seen through water, so it carries the water's absorption colour
-      shell: s(lampLit(pbr("pool_tile", { color: "#4aa6b6", roughness: 0.35, envMapIntensity: 0.4 }), ["garden"])),
+      // the shell is seen through the water: absorption, caustics and the lit haze are applied to it
+      shell: s(underwater(lampLit(pbr("pool_tile", { color: "#bfe3e6", roughness: 0.35, envMapIntensity: 0.4 }), ["garden"]), POOL_U)),
       water: s(waterMaterial()),
       steel: s(lit(solid("#2a2724", 0.45, 0.7))),
       timber: s(lit(pbr("cedar", { color: "#e8d6c2", roughness: 1 }))),
@@ -314,6 +300,9 @@ export function Garden() {
       w.uniforms.uTime.value = U.time.value;
       w.uniforms.uGlow.value = lit;
     }
+    POOL_U.uTime.value = U.time.value;
+    POOL_U.uGlow.value = lit;
+    POOL_U.uCaustic.value = 1 - THREE.MathUtils.smoothstep(d, 0.25, 0.6);
     mats.bulb.color.setRGB(1, 0.85, 0.66).multiplyScalar(0.4 + lit * 6);
     if (lights.current) lights.current.visible = lit > 0.01;
   });
@@ -382,10 +371,10 @@ export function Garden() {
           <mesh geometry={geo.tableTop} material={mats.tableTop} {...sh} />
         </>
       )}
-      {plants.core.map((m) => (
-        <primitive key={m.name} object={m} />
-      ))}
-      {lush && plants.lush.map((m) => <primitive key={m.name + "l"} object={m} />)}
+      <PlantField plants={plants.core} />
+      <group visible={lush}>
+        <PlantField plants={plants.lush} />
+      </group>
       <mesh geometry={geo.stones} material={mats.stones} receiveShadow />
       <mesh geometry={geo.bollards} material={mats.bollard} castShadow />
       <group ref={lights} visible={false}>
@@ -402,16 +391,78 @@ export function Garden() {
   );
 }
 
+/** Wind-ruffled surface: three drifting octaves of value noise (no visible pattern repeat). */
 const WATER_WAVES = /* glsl */ `
+float wHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float wNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(wHash(i), wHash(i + vec2(1.0, 0.0)), f.x), mix(wHash(i + vec2(0.0, 1.0)), wHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
 float h(vec2 p) {
-  return sin(p.x * 3.1 + uTime * 0.9) * 0.5 + sin(p.y * 2.3 - uTime * 0.7) * 0.5 + sin((p.x + p.y) * 5.7 + uTime * 1.3) * 0.25;
+  return wNoise(p * 1.1 + vec2(uTime * 0.32, uTime * 0.18)) * 0.62 + wNoise(p * 2.7 - vec2(uTime * 0.45, -uTime * 0.28)) * 0.28 + wNoise(p * 6.3 + vec2(uTime * 0.8, uTime * 0.55)) * 0.1;
 }
 vec3 waterNormal(vec3 w) {
-  vec2 e = vec2(0.03, 0.0);
-  vec2 p = w.xz * 1.6;
-  return normalize(vec3(h(p - e.xy) - h(p + e.xy), 12.0, h(p - e.yx) - h(p + e.yx)));
+  vec2 e = vec2(0.04, 0.0);
+  vec2 p = w.xz * 1.4;
+  return normalize(vec3(h(p - e.xy) - h(p + e.xy), 0.34, h(p - e.yx) - h(p + e.yx)));
 }
 `;
+
+/**
+ * The pool shell as seen through the water: light loses red first on its way down and back up
+ * (clear water: ~0.4 /m red, ~0.07 green, ~0.05 blue), so the deep end turns blue and the steps
+ * stay turquoise; the sun draws moving caustics on the floor by day; the pool light fills the
+ * water with a turquoise haze after dark.
+ */
+function underwater<T extends THREE.MeshStandardMaterial>(m: T, u: { uTime: { value: number }; uCaustic: { value: number }; uGlow: { value: number } }) {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (s, r) => {
+    prev?.call(m, s, r);
+    Object.assign(s.uniforms, u);
+    s.vertexShader = s.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vPoolW;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPoolW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    s.fragmentShader = s.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+        varying vec3 vPoolW;
+        uniform float uTime;
+        uniform float uCaustic;
+        uniform float uGlow;
+        float causticAt(vec2 p, float t) {
+          vec2 q = p * 1.9;
+          vec2 i = q;
+          float c = 1.0;
+          for (int n = 0; n < 4; n++) {
+            float tt = t * (1.0 - (3.5 / float(n + 1)));
+            i = q + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x));
+            c += 1.0 / length(vec2(q.x / (sin(i.x + tt) / 0.005), q.y / (cos(i.y + tt) / 0.005)));
+          }
+          c /= 4.0;
+          c = 1.17 - pow(c, 1.4);
+          return pow(abs(c), 8.0);
+        }`,
+      )
+      .replace(
+        "#include <opaque_fragment>",
+        `float pd = max(${WATER_Y.toFixed(3)} - vPoolW.y, 0.0);
+        vec3 pv = normalize(cameraPosition - vPoolW);
+        float pl = pd * (1.0 / max(pv.y, 0.14) + 1.1);
+        vec3 pt = exp(-vec3(0.42, 0.075, 0.05) * pl);
+        outgoingLight += diffuseColor.rgb * causticAt(vPoolW.xz, uTime * 0.55) * uCaustic * 1.6 * smoothstep(0.02, 0.2, pd);
+        vec3 pscatter = vec3(0.01, 0.055, 0.07) * (0.25 + 0.75 * uCaustic) + vec3(0.0, 0.09, 0.11) * uGlow;
+        outgoingLight = outgoingLight * pt + pscatter * (1.0 - pt);
+        #include <opaque_fragment>`,
+      );
+  };
+  const prevKey = m.customProgramCacheKey?.bind(m);
+  m.customProgramCacheKey = () => `${prevKey ? prevKey() : ""}|underwater`;
+  return m;
+}
+
+const POOL_U = { uTime: { value: 0 }, uCaustic: { value: 0 }, uGlow: { value: 0 } };
 
 /** Pool water over a planar reflection (three's Reflector renders the mirrored view). */
 const REFLECTIVE_WATER = {
@@ -461,8 +512,8 @@ const REFLECTIVE_WATER = {
 REFLECTIVE_WATER.fragmentShader = REFLECTIVE_WATER.fragmentShader.replace("${SKY}", SKY_GLSL).replace("${WAVES}", WATER_WAVES);
 
 /**
- * Pool water: reflects the real sky (env map, Fresnel), shows the tiled shell through a
- * clear blue-green body, ripples with two scrolling normal octaves, glows when lit at night.
+ * Pool water without the mirror pass (lower tiers): reflects the analytic sky with Fresnel over
+ * the same wind-ruffled surface; the shell shows through, tinted by its own underwater patch.
  */
 function waterMaterial() {
   const m = new THREE.ShaderMaterial({
@@ -490,13 +541,9 @@ function waterMaterial() {
       uniform float uGlow;
       varying vec3 vW;
       varying vec2 vUv;
-      float h(vec2 p) {
-        return sin(p.x * 3.1 + uTime * 0.9) * 0.5 + sin(p.y * 2.3 - uTime * 0.7) * 0.5 + sin((p.x + p.y) * 5.7 + uTime * 1.3) * 0.25;
-      }
+      ${WATER_WAVES}
       void main() {
-        vec2 e = vec2(0.03, 0.0);
-        vec2 p = vW.xz * 1.6;
-        vec3 n = normalize(vec3(h(p - e.xy) - h(p + e.xy), 12.0, h(p - e.yx) - h(p + e.yx)));
+        vec3 n = waterNormal(vW);
         vec3 V = normalize(cameraPosition - vW);
         float f = 0.02 + 0.98 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
         vec3 R = reflect(-V, n);

@@ -4,12 +4,12 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { GARDEN, MAIN, WING } from "@/lib/spec";
-import { textureSizeFor, TIERS } from "@/lib/quality";
 import { useDemo } from "@/lib/store";
 import { SUN_DIR } from "./env";
 import { box, merge, type Placed } from "./geom";
-import { buildImpostors, IMPOSTOR_SUN, setCoverage, type PlantId, type PlantPlacement } from "./impostor";
+import { IMPOSTOR_SUN, type PlantPlacement } from "./impostor";
 import { pbr, tex } from "./materials";
+import { PlantField } from "./plantfield";
 import { rng } from "./proc";
 
 /** The lot: mown lawn inside, meadow beyond, woodland beyond that. */
@@ -180,7 +180,6 @@ function placeForest(count: number) {
 export function Landscape() {
   const tier = useDemo((s) => s.tier);
   const hi = tier !== "low";
-  const sharp = textureSizeFor(tier) === 1024;
 
   const mats = useMemo(() => {
     const drive = pbr("gravel", { roughness: 1, color: "#e4dccd", envMapIntensity: 0.6, scale: 0.8 });
@@ -240,30 +239,8 @@ export function Landscape() {
     return { ground, drive, pavers: merge(pavers), gravel: merge(gravel), edges: merge(edges) };
   }, []);
 
-  const plants = useMemo(() => {
-    const near = placeTrees();
-    const far = placeForest(hi ? 150 : 70);
-    const meshes: THREE.InstancedMesh[] = [];
-    for (const [id, list] of Object.entries(near)) if (list.length) meshes.push(buildImpostors(id as PlantId, list, sharp));
-    for (const [id, list] of Object.entries(far)) {
-      if (!list.length) continue;
-      const mesh = buildImpostors(id as PlantId, list, false);
-      mesh.castShadow = false; // far outside the shadow camera
-      meshes.push(mesh);
-    }
-    return meshes;
-  }, [hi, sharp]);
-  const msaa = TIERS[tier].msaa > 0;
-  useEffect(() => setCoverage(plants, msaa), [plants, msaa]);
-  useEffect(
-    () => () =>
-      plants.forEach((m) => {
-        m.geometry.dispose();
-        (m.material as THREE.Material).dispose();
-        m.customDepthMaterial?.dispose();
-      }),
-    [plants],
-  );
+  const near = useMemo(() => placeTrees(), []);
+  const far = useMemo(() => placeForest(hi ? 150 : 70), [hi]);
 
   useFrame(() => {
     IMPOSTOR_SUN.value.copy(SUN_DIR);
@@ -276,9 +253,9 @@ export function Landscape() {
       <mesh geometry={geo.pavers} material={mats.paver} receiveShadow castShadow />
       <mesh geometry={geo.gravel} material={mats.gravel} receiveShadow />
       <mesh geometry={geo.edges} material={mats.edge} />
-      {plants.map((m) => (
-        <primitive key={m.name + m.count} object={m} />
-      ))}
+      <PlantField plants={near} />
+      {/* the distant woodland: impostors only, far outside the shadow camera */}
+      <PlantField plants={far} shadows={false} cards={false} />
     </group>
   );
 }

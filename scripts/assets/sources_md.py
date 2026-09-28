@@ -53,8 +53,9 @@ photograph and re-added as a light; stored as linear radiance in WebP).
 ## Surface textures
 
 Built by `scripts/assets/build_textures.py` into `public/assets/tex/<id>/{{color,normal,arm}}_<px>.webp`
-at true scale (each set records the metres it covers). Composites — stone panels, large-format
-porcelain, shingles — are cut from these scans; the black granite is graded from a pale one.
+at true scale (each set records the metres it covers). Composites — pavers, large-format
+porcelain, shingles — are cut from these scans; the slate veneer of the stone base is graded from
+Castle Wall Slates; the black granite is graded from a pale one.
 
 ### Poly Haven
 
@@ -73,8 +74,14 @@ meshopt-compressed, WebP textures) into `public/assets/models`.
 
 ## Vegetation
 
-Poly Haven plant scans rendered to hemi-octahedral impostor atlases in Blender (Cycles) by
-`scripts/assets/bake_impostors.py` and packed by `pack_impostors.py` into `public/assets/plants`.
+Poly Haven plant scans, used two ways:
+
+- near and middle distance: real-time 3D trees built by `scripts/assets/build_trees.py` and
+  `build_trees.mjs` into `public/assets/trees` — the scan's own trunk and limbs (simplified with
+  meshopt) and one textured card per leaf, or, for the fir (modelled needle by needle), sprig
+  cards laid from the sprig pictures in its own atlas;
+- far distance: hemi-octahedral impostor atlases rendered in Blender (Cycles) by
+  `scripts/assets/bake_impostors.py` and packed by `pack_impostors.py` into `public/assets/plants`.
 
 {table("polyhaven_trees")}
 
@@ -100,7 +107,8 @@ Loaded with `next/font/google` and self-hosted at build time.
 | Asset | How |
 | --- | --- |
 | Architecture, kitchen joinery, steel frame and connections, ducts, garden furniture | Modelled in code from the single spec in `lib/spec.ts` and `lib/steel.ts` |
-| Stone panels, porcelain, shingles (new and weathered), standing-seam pan | Composited from the scans above, `scripts/assets/build_textures.py` |
+| Pavers, porcelain, shingles (new and weathered), standing-seam pan | Composited from the scans above, `scripts/assets/build_textures.py` |
+| Leaf and sprig cards, bark LODs | Derived from the tree scans above, `scripts/assets/build_trees.py` and `.mjs` |
 | Solar cell pattern | Generated on the device, `three/proc.ts` |
 | Industry tile stills `public/previews/*.webp` | Rendered from the live scene, `scripts/og/previews.mjs` |
 | Share image `public/og.jpg`, no-WebGL poster `public/poster.jpg` | Rendered from the live scene, `scripts/og/render.mjs`, `scripts/og/poster.mjs` |
@@ -110,7 +118,8 @@ Loaded with `next/font/google` and self-hosted at build time.
 
 Open-source libraries are listed in `package.json` (three.js, React Three Fiber, drei,
 postprocessing, n8ao, camera-controls, motion, zustand, zod — MIT/ISC). Asset tooling: Blender
-(GPL, used offline only), glTF Transform (MIT), Pillow and NumPy.
+(GPL, used offline only), glTF Transform (MIT), meshoptimizer (MIT), sharp (Apache-2.0), Pillow,
+NumPy and SciPy.
 """
 
 with open(os.path.join(ROOT, "ASSET_SOURCES.md"), "w") as f:

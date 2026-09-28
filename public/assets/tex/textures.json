@@ -111,8 +111,8 @@
  },
  "clad_stone": {
   "meters": [
-   2.4,
-   1.2
+   2.5,
+   2.5
   ],
   "maps": [
    "color",
@@ -123,13 +123,13 @@
    1024,
    512
   ],
-  "note": "limestone cladding, 1200x600 panels",
+  "note": "coursed slate veneer",
   "mean": [
-   0.7404,
-   0.5989,
-   0.4104
+   0.3089,
+   0.2573,
+   0.1832
   ],
-  "bytes": 88680
+  "bytes": 1379682
  },
  "concrete": {
   "meters": [
