@@ -1,4 +1,4 @@
-// Real-time 3D trees, stage 2 of 2 (stage 1: scripts/assets/build_trees.py).
+// Real-time 3D trees and ground cover, stage 2 of 2 (stage 1: scripts/assets/build_trees.py).
 //   node scripts/assets/build_trees.mjs [ids]
 // From .cache/trees/<id>/: simplifies the bark (<id>.gltf, meshes lod0 / lod1) with meshopt to a
 // triangle budget and writes public/assets/trees/<id>.glb (WebP textures at 256 px, meshopt
@@ -57,10 +57,26 @@ const ids = process.argv.slice(2).length ? process.argv.slice(2) : readdirSync(S
 
 const pictures = {};
 const written = new Set();
+const coverPath = join(OUT, "cover.json");
+const cover = existsSync(coverPath) ? JSON.parse(readFileSync(coverPath, "utf8")) : {};
 for (const id of ids) {
   const src = join(SRC, id, `${id}.gltf`);
   const doc = await io.read(src);
   const extras = JSON.parse(readFileSync(src, "utf8")).extras ?? {};
+  if (extras.kind === "cover") {
+    // ground cover: whole clumps, one node per variant; the RGBA picture keeps its alpha in WebP
+    await doc.transform(
+      F.weld(),
+      F.textureCompress({ encoder: sharp, targetFormat: "webp", resize: [512, 512], quality: 82 }),
+      F.prune(),
+      F.meshopt({ encoder: MeshoptEncoder, level: "medium" }),
+    );
+    const out = join(OUT, `${id}.glb`);
+    await io.write(out, doc);
+    cover[id] = { variants: extras.variants, source: extras.source, bytes: statSync(out).size };
+    console.log(`${id}: ${extras.variants.length} variants, ${Math.round(cover[id].bytes / 1024)} KB`);
+    continue;
+  }
   await doc.transform(F.weld());
   const isLeaf = () => false; // leaves travel as compact cards, not in the GLB
   const tris = (p) => (p.getIndices()?.getCount() ?? 0) / 3;
@@ -122,3 +138,4 @@ for (const id of ids) {
   console.log(`${id}: LOD0 ${triangles.lod0.leaves}+${triangles.lod0.bark}, LOD1 ${triangles.lod1.leaves}+${triangles.lod1.bark} triangles, ${Math.round(bytes / 1024)} KB`);
 }
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+if (Object.keys(cover).length) writeFileSync(coverPath, JSON.stringify(cover, null, 2) + "\n");

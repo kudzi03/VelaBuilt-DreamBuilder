@@ -5,7 +5,7 @@ import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import TREES from "@/public/assets/trees/trees.json";
-import { TIERS, textureSizeFor } from "@/lib/quality";
+import { isPhone, TIERS, textureSizeFor } from "@/lib/quality";
 import { useDemo, type Tier } from "@/lib/store";
 import { markShadowsDirty } from "./Atmosphere";
 import { buildImpostors, FOLIAGE_LIGHT, plant, setCoverage, type PlantId, type PlantPlacement } from "./impostor";
@@ -25,20 +25,28 @@ type CardId = keyof typeof TREES;
 const hasCards = (id: string): id is CardId => id in TREES;
 const SHRUBS = /^searsia/;
 
-/** metres to the crown centre: [LOD0, LOD1] per tier, and how many plants of a species may use each */
-const RANGES: Record<Tier, { tree: [number, number]; shrub: [number, number]; cap: [number, number] }> = {
+/**
+ * Metres to the crown centre: [LOD0, LOD1], and how many plants of a species may use each.
+ * Phones use their own budget on every tier but the lowest: a small screen shows less and a
+ * phone GPU affords less. The lowest tier never draws the full-detail model.
+ */
+type Budget = "high" | "medium" | "phone" | "low";
+const RANGES: Record<Budget, { tree: [number, number]; shrub: [number, number]; cap: [number, number] }> = {
   high: { tree: [55, 150], shrub: [26, 50], cap: [16, 70] },
-  medium: { tree: [42, 110], shrub: [20, 38], cap: [10, 45] },
-  low: { tree: [30, 75], shrub: [14, 26], cap: [6, 26] },
+  medium: { tree: [40, 100], shrub: [18, 34], cap: [8, 36] },
+  phone: { tree: [34, 80], shrub: [14, 26], cap: [5, 24] },
+  low: { tree: [0, 60], shrub: [0, 20], cap: [0, 12] },
 };
+const budgetFor = (tier: Tier): Budget => (tier === "low" ? "low" : isPhone() ? "phone" : tier);
 /** plants this close stay in, even out of view: their shadows fall into it */
 const SHADOW_KEEP = 32;
 
 /** Wind time: a slow sway and a faster flutter, strongest at the crown's edge. */
 export const WIND = { value: 0 };
 
-function foliageMaterial(map: THREE.Texture) {
-  const m = new THREE.MeshStandardMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 0.75, metalness: 0 });
+/** Leaf material: cut-out, two-sided, wind, wrap and back lighting. `vertexColors`: crown AO from the card expansion. */
+export function foliageMaterial(map: THREE.Texture, vertexColors = true) {
+  const m = new THREE.MeshStandardMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, vertexColors, roughness: 0.75, metalness: 0 });
   m.envMapIntensity = 0.6;
   m.onBeforeCompile = (s) => {
     s.uniforms.uWind = WIND;
@@ -70,7 +78,7 @@ function foliageMaterial(map: THREE.Texture) {
       )
       .replace("#include <lights_physical_pars_fragment>", FOLIAGE_LIGHT);
   };
-  m.customProgramCacheKey = () => "vb-cardleaf";
+  m.customProgramCacheKey = () => `vb-cardleaf${vertexColors ? "" : "-nc"}`;
   // garden uplights reach into the crowns after dark
   return lampLit(m, ["garden"]);
 }
@@ -310,6 +318,9 @@ const _sphere = new THREE.Sphere();
  */
 export function PlantField({ plants, shadows = true, cards = true }: { plants: Record<string, PlantPlacement[]>; shadows?: boolean; cards?: boolean }) {
   const tier = useDemo((s) => s.tier);
+  // phones reveal on the impostors and swap the 3D models in once the property is on screen
+  const revealed = useDemo((s) => s.sceneReady && s.phase !== "loading");
+  const eager = useMemo(() => !isPhone(), []);
   const sharp = textureSizeFor(tier) === 1024;
   const msaa = TIERS[tier].msaa > 0;
   const { camera } = useThree();
@@ -334,7 +345,7 @@ export function PlantField({ plants, shadows = true, cards = true }: { plants: R
   const buf = useRef({ a: [] as number[], b: [] as number[], c: [] as number[], near: [] as number[], dist: [] as number[] });
   useFrame((_, dt) => {
     if (!useDemo.getState().reducedMotion) WIND.value += Math.min(dt, 0.1);
-    const R = RANGES[tier];
+    const R = RANGES[budgetFor(tier)];
     _pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_pv);
     const cp = camera.position;
@@ -386,7 +397,7 @@ export function PlantField({ plants, shadows = true, cards = true }: { plants: R
       {field.map((f) => (
         <primitive key={f.imp.uuid} object={f.imp} />
       ))}
-      {cards && field.some((f) => hasCards(f.id)) && (
+      {cards && (eager || revealed) && field.some((f) => hasCards(f.id)) && (
         <Suspense fallback={null}>
           <CardModels field={field} shadows={shadows} px={sharp ? 1024 : 512} />
         </Suspense>

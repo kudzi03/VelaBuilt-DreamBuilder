@@ -8,6 +8,7 @@ import { GARDEN as G, MAIN, WING } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { markShadowsDirty, SKY_GLSL, SKY_UNIFORMS } from "./Atmosphere";
 import { box, merge, rbox, type Placed } from "./geom";
+import { Beds, CLUMP, FERNS, GRASS, mix, type Bed } from "./beds";
 import { type PlantPlacement } from "./impostor";
 import { PlantField } from "./plantfield";
 import { lampLit, registerLamps, unregisterLamps, updateLampViewPositions, type Lamp } from "./lamps";
@@ -37,9 +38,9 @@ const GARDEN_LAMPS: Lamp[] = [
   { pos: [(PL.x0 + PL.x1) / 2, -0.9, (PL.z0 + PL.z1) / 2 + 1.5], color: "#a6ecf7", power: 5.5, range: 7, group: "garden" },
   // pergola: warm downlight over the seating
   { pos: [(PG.x0 + PG.x1) / 2, PG.h - 0.35, (PG.z0 + PG.z1) / 2], color: "#ffbd78", power: 10, range: 6, group: "garden" },
-  // path bollards
-  { pos: [-7.2, 0.45, -5.4], color: "#ffc27f", power: 3, range: 2.4, group: "garden" },
-  { pos: [-10.3, 0.45, -5.4], color: "#ffc27f", power: 3, range: 2.4, group: "garden" },
+  // path bollards (pool side of the stepping stones)
+  { pos: [-7.4, 0.45, -5.9], color: "#ffc27f", power: 3, range: 2.4, group: "garden" },
+  { pos: [-10.1, 0.45, -5.9], color: "#ffc27f", power: 3, range: 2.4, group: "garden" },
   // uplights at the feet of the planting: warm cones up into the crowns
   { pos: [-13.6, 0.25, -5.2], color: "#ffc98a", power: 12, range: 5.5, group: "garden", cone: { dir: [0.1, 1, 0], inner: 20, outer: 48 } },
   { pos: [-2.9, 0.25, -17.5], color: "#ffcc90", power: 30, range: 7.5, group: "garden", cone: { dir: [0.05, 1, -0.08], inner: 18, outer: 42 } },
@@ -173,6 +174,20 @@ function planting(): GardenPlants {
   return { core, lush };
 }
 
+/**
+ * Beds under the shrubs: ferns along the west gable (outside its gravel margin), the strip
+ * between the pool and the terrace, the garden's west edge and the back boundary.
+ */
+const BEDS_CORE: Bed[] = [
+  { x0: MAIN.x0 - 1.5, x1: MAIN.x0 - 0.47, z0: MAIN.z0 + 0.25, z1: MAIN.z1 + 0.2, every: 0.62, fill: [mix(FERNS, 3), mix(CLUMP, 1)], seed: 3 },
+  { x0: G.x0 + 0.05, x1: PL.x0 - COPE - 0.12, z0: -10.7, z1: -4.3, every: 0.6, fill: [mix(FERNS, 1), mix(GRASS, 2)], seed: 5 },
+];
+const BEDS_LUSH: Bed[] = [
+  // kept low: the arrival shots look across it at the terrace
+  { x0: PL.x1 + COPE + 0.1, x1: P.x0 - 0.06, z0: P.z0 + 0.2, z1: -6.6, every: 0.5, fill: [mix(FERNS, 2, [1.0, 1.3]), mix(CLUMP, 2, [1.0, 1.4])], seed: 7 },
+  { x0: -6.8, x1: WING.x0 + 0.1, z0: G.z0 + 0.1, z1: G.z0 + 1.6, every: 0.55, fill: [mix(GRASS, 2), mix(FERNS, 1)], seed: 11 },
+];
+
 const STONES: Array<[number, number]> = [
   [-7.4, -5.2],
   [-8.3, -5.1],
@@ -218,8 +233,8 @@ export function Garden() {
     const bollardTops: Placed[] = [];
     STONES.forEach(([x, z], i) => {
       if (i % 3 === 0) {
-        bollards.push({ geo: new THREE.CylinderGeometry(0.05, 0.05, 0.5, 16), pos: [x, 0.25, z + 0.75] });
-        bollardTops.push({ geo: new THREE.CylinderGeometry(0.047, 0.047, 0.05, 16), pos: [x, 0.47, z + 0.75] });
+        bollards.push({ geo: new THREE.CylinderGeometry(0.05, 0.05, 0.5, 16), pos: [x, 0.25, z - 0.7] });
+        bollardTops.push({ geo: new THREE.CylinderGeometry(0.047, 0.047, 0.05, 16), pos: [x, 0.47, z - 0.7] });
       }
     });
     const beforeGround = new THREE.PlaneGeometry(G.x1 - G.x0, G.z1 - G.z0);
@@ -372,8 +387,10 @@ export function Garden() {
         </>
       )}
       <PlantField plants={plants.core} />
+      <Beds beds={BEDS_CORE} />
       <group visible={lush}>
         <PlantField plants={plants.lush} />
+        <Beds beds={BEDS_LUSH} />
       </group>
       <mesh geometry={geo.stones} material={mats.stones} receiveShadow />
       <mesh geometry={geo.bollards} material={mats.bollard} castShadow />

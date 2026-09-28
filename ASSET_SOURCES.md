@@ -42,6 +42,7 @@ Castle Wall Slates; the black granite is graded from a pale one.
 | Rough Linen | Upholstery and cushions | colormass, Rico Cilliers | https://polyhaven.com/a/rough_linen | CC0 1.0 |
 | Concrete Floor 02 | Concrete: steel footings, before-garden slab | Rob Tuytel | https://polyhaven.com/a/concrete_floor_02 | CC0 1.0 |
 | Castle Wall Slates | Stone base: coursed slate veneer (house plinth walls, kitchen-wing piers) | Rob Tuytel | https://polyhaven.com/a/castle_wall_slates | CC0 1.0 |
+| Mud Forest | Planting beds: dark mulched soil | eye-candy.xyz | https://polyhaven.com/a/mud_forest | CC0 1.0 |
 
 ### ambientCG
 
@@ -88,7 +89,9 @@ Poly Haven plant scans, used two ways:
   meshopt) and one textured card per leaf, or, for the fir (modelled needle by needle), sprig
   cards laid from the sprig pictures in its own atlas;
 - far distance: hemi-octahedral impostor atlases rendered in Blender (Cycles) by
-  `scripts/assets/bake_impostors.py` and packed by `pack_impostors.py` into `public/assets/plants`.
+  `scripts/assets/bake_impostors.py` and packed by `pack_impostors.py` into `public/assets/plants`;
+- ground cover (grass and fern clumps in the planting beds): the scans' own geometry, instanced,
+  packed by the same tree scripts.
 
 | Asset | Used for | Creator | Source | Licence |
 | --- | --- | --- | --- | --- |
@@ -97,6 +100,9 @@ Poly Haven plant scans, used two ways:
 | Island Tree 02 | Mid-size garden trees | Rob Tuytel, Rico Cilliers | https://polyhaven.com/a/island_tree_02 | CC0 1.0 |
 | Searsia Lucida | Large shrubs and boundary planting | James Ray Cock, Jenelle van Heerden | https://polyhaven.com/a/searsia_lucida | CC0 1.0 |
 | Shrub 02 | Garden shrubs | Rico Cilliers | https://polyhaven.com/a/shrub_02 | CC0 1.0 |
+| Grass Medium 01 | Ornamental grass drifts in the planting beds | Rob Tuytel, Rico Cilliers | https://polyhaven.com/a/grass_medium_01 | CC0 1.0 |
+| Grass Medium 02 | Grass clumps at bed and path edges | Rico Cilliers | https://polyhaven.com/a/grass_medium_02 | CC0 1.0 |
+| Fern 02 | Ferns in the shaded bed along the west gable | Rob Tuytel, Rico Cilliers | https://polyhaven.com/a/fern_02 | CC0 1.0 |
 
 ## Fonts (SIL Open Font License 1.1)
 

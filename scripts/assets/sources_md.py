@@ -81,7 +81,9 @@ Poly Haven plant scans, used two ways:
   meshopt) and one textured card per leaf, or, for the fir (modelled needle by needle), sprig
   cards laid from the sprig pictures in its own atlas;
 - far distance: hemi-octahedral impostor atlases rendered in Blender (Cycles) by
-  `scripts/assets/bake_impostors.py` and packed by `pack_impostors.py` into `public/assets/plants`.
+  `scripts/assets/bake_impostors.py` and packed by `pack_impostors.py` into `public/assets/plants`;
+- ground cover (grass and fern clumps in the planting beds): the scans' own geometry, instanced,
+  packed by the same tree scripts.
 
 {table("polyhaven_trees")}
 

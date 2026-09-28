@@ -27,14 +27,19 @@ export function isTouchDevice() {
   return window.matchMedia?.("(pointer: coarse)").matches || navigator.maxTouchPoints > 1;
 }
 
+/** A phone-sized touch screen (tablets and desktops are not). */
+export function isPhone() {
+  if (typeof window === "undefined") return false;
+  return isTouchDevice() && Math.min(window.screen.width, window.screen.height) < 600;
+}
+
 /**
  * Phones get the 512 px texture and plant-atlas variants on every tier: as sharp as the screen
  * can show, and about a third of the download over a mobile connection.
  */
 export function textureSizeFor(tier: Tier): 512 | 1024 {
   if (typeof window === "undefined") return TIERS[tier].textureSize;
-  const phone = isTouchDevice() && Math.min(window.screen.width, window.screen.height) < 600;
-  return phone ? 512 : TIERS[tier].textureSize;
+  return isPhone() ? 512 : TIERS[tier].textureSize;
 }
 
 export function webglAvailable(): boolean {

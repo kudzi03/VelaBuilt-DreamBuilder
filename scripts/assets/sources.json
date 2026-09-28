@@ -44,6 +44,9 @@
     },
     "castle_wall_slates": {
       "use": "Stone base: coursed slate veneer (house plinth walls, kitchen-wing piers)"
+    },
+    "mud_forest": {
+      "use": "Planting beds: dark mulched soil"
     }
   },
   "ambientcg_textures": {
@@ -146,6 +149,18 @@
     },
     "shrub_02": {
       "use": "Garden shrubs",
+      "res": "1k"
+    },
+    "grass_medium_01": {
+      "use": "Ornamental grass drifts in the planting beds",
+      "res": "1k"
+    },
+    "grass_medium_02": {
+      "use": "Grass clumps at bed and path edges",
+      "res": "1k"
+    },
+    "fern_02": {
+      "use": "Ferns in the shaded bed along the west gable",
       "res": "1k"
     }
   }

@@ -138,13 +138,21 @@ export const FACADE_LIGHTS: [number, number, number, "x" | "z", number][] = [
   [MAIN.x0, 2.3, -3.2, "x", -1],
   [MAIN.x0, 2.3, 3.1, "x", -1],
 ];
-const FACADE_LAMPS: Lamp[] = FACADE_LIGHTS.map(([x, y, z, ax, sg]) => ({
-  pos: ax === "z" ? [x, y, z + sg * 0.16] : [x + sg * 0.16, y, z],
-  color: "#ffbd74",
-  power: 16,
-  range: 3.4,
-  group: "exterior",
-}));
+/** Each fixture is two narrow beams, up and down, leaning a touch into the wall they graze. */
+const FACADE_LAMPS: Lamp[] = FACADE_LIGHTS.flatMap(([x, y, z, ax, sg]) =>
+  ([1, -1] as const).map((up): Lamp => {
+    const off = 0.1;
+    const into = -sg * 0.07;
+    return {
+      pos: ax === "z" ? [x, y + up * 0.09, z + sg * off] : [x + sg * off, y + up * 0.09, z],
+      color: "#ffbd74",
+      power: up > 0 ? 26 : 32,
+      range: 3.2,
+      group: "exterior",
+      cone: { dir: ax === "z" ? [0, up, into] : [into, up, 0], inner: 8, outer: 24 },
+    };
+  }),
+);
 
 /**
  * Recessed downlights in the eaves, ~20 cm out from the wall: each throws a warm cone down the

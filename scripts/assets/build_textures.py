@@ -403,6 +403,7 @@ BUILD = {
     "lawn": lambda: plain("lawn", "Grass001", (1.4, 1.4)),
     "meadow": lambda: plain("meadow", "Grass004", (1.4, 1.4)),
     "gravel": lambda: plain("gravel", "Gravel022", (1.5, 1.5)),
+    "mulch": lambda: plain("mulch", "mud_forest", (2.35, 2.35), (512, 256), note="mulched bed soil"),
     "deck": lambda: plain("deck", "wood_floor_deck", (1.8, 1.8)),
     "concrete": lambda: plain("concrete", "concrete_floor_02", (2.0, 2.0)),
     "pool_tile": lambda: plain("pool_tile", "Tiles107", (1.0, 1.0)),

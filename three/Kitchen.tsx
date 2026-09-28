@@ -1,13 +1,14 @@
 "use client";
 
 import { useGLTF } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { CabinetId, CounterId, FloorId } from "@/lib/options";
 import { FLOOR_Y, KITCHEN as K, WING, WING_RIDGE_X } from "@/lib/spec";
 import { useDemo } from "@/lib/store";
 import { box, merge, rbox, type Placed } from "./geom";
-import { lampLit, registerLamps, unregisterLamps, type Lamp } from "./lamps";
+import { lampLevel, lampLit, registerLamps, unregisterLamps, type Lamp } from "./lamps";
 import { pbr, solid } from "./materials";
 import { REMODEL_DUSK } from "./Director";
 import { useInteriorProbe } from "./probe";
@@ -480,7 +481,7 @@ const PENDANT_Z = [-11.25, -10.4, -9.55];
 const PENDANT_X = (IS.x0 + IS.x1) / 2;
 const PENDANT_Y = TOP + 0.74; // bottom of the shade
 const LAMPS: Lamp[] = [
-  ...PENDANT_Z.map((z) => ({ pos: [PENDANT_X, PENDANT_Y + 0.06, z] as V3, color: "#ffdcb8", power: 11, range: 3.4, group: "kitchen" as const })),
+  ...PENDANT_Z.map((z) => ({ pos: [PENDANT_X, PENDANT_Y + 0.06, z] as V3, color: "#ffd6ae", power: 14, range: 3.6, group: "kitchen" as const })),
   // bounce from the vault
   { pos: [WING_RIDGE_X, 3.9, -11.6], color: "#fff0e2", power: 2.4, range: 7, group: "kitchen" },
   { pos: [WING_RIDGE_X, 3.9, -6.6], color: "#fff0e2", power: 2.4, range: 7, group: "kitchen" },
@@ -788,6 +789,7 @@ const URLS = PROPS.map((id) => `/assets/models/${id}.glb`);
 /** Poly Haven props (CC0): pendants, a bowl of lemons, vases, a board, an aloe. */
 function Props({ island }: { island: boolean }) {
   const gltfs = useGLTF(URLS, false, true);
+  const glowing = useMemo(() => [] as Array<{ mat: THREE.MeshStandardMaterial; peak: number }>, []);
   const scenes = useMemo(() => {
     const prep = (root: THREE.Object3D, glow = false) => {
       root.traverse((o) => {
@@ -796,14 +798,13 @@ function Props({ island }: { island: boolean }) {
         m.castShadow = !glow;
         m.receiveShadow = true;
         const mat = m.material as THREE.MeshStandardMaterial & { transmission?: number };
+        // opal shades glow with the kitchen lamps: lit globes after dark, a faint warmth by day
+        if (glow && /glass|globe/i.test(mat.name)) glowing.push({ mat, peak: /globe/i.test(mat.name) ? 7 : 2.4 });
         if (mat.userData.vb) return; // shared by clones and remounts: patch once
         mat.userData.vb = true;
         mat.envMapIntensity = 0.45;
         if (mat.transmission) mat.transmission = 0;
-        if (glow && /glass|globe/i.test(mat.name)) {
-          mat.emissive = new THREE.Color("#ffc68a");
-          mat.emissiveIntensity = /globe/i.test(mat.name) ? 3 : 0.6;
-        }
+        if (glow && /glass|globe/i.test(mat.name)) mat.emissive = new THREE.Color("#ffc68a");
         lampLit(mat, ["kitchen"]);
         patch(mat, { cut: "solid", wipe: { side: "after", u: wipes.kitchen } });
       });
@@ -811,7 +812,11 @@ function Props({ island }: { island: boolean }) {
     };
     const [pendant, bowl, lemon, vase_a, vase_b, board, aloe] = gltfs.map((g, i) => prep(g.scene, PROPS[i] === "pendant"));
     return { pendant, bowl, lemon, vase_a, vase_b, board, aloe };
-  }, [gltfs]);
+  }, [gltfs, glowing]);
+  useFrame(() => {
+    const k = lampLevel("kitchen");
+    for (const g of glowing) g.mat.emissiveIntensity = g.peak * (0.2 + 0.8 * k);
+  });
 
   const pendants = useMemo(() => PENDANT_Z.map(() => scenes.pendant.clone(true)), [scenes]);
   const lemons = useMemo(() => [0, 1, 2].map(() => scenes.lemon.clone(true)), [scenes]);

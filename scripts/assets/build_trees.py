@@ -53,6 +53,14 @@ SPECIES = {
     "searsia_d": ("searsia_lucida", "searsia_lucida_d", ["leaves", "twigs"], 2400, 1.5, 0.45),
 }
 
+# ground cover: small scans kept as they are (a few hundred to two thousand triangles a clump),
+# one node per variant, each normalised to its own footprint centre and ground
+COVER = {
+    "grass_tall": ("grass_medium_01", ["grass_medium_01_tall_a_LOD0", "grass_medium_01_tall_b_LOD0", "grass_medium_01_tall_c_LOD0", "grass_medium_01_mid_b_LOD0"]),
+    "grass_clump": ("grass_medium_02", ["grass_medium_02_c", "grass_medium_02_d", "grass_medium_02_e"]),
+    "fern": ("fern_02", ["fern_02_a", "fern_02_b", "fern_02_c", "fern_02_d"]),
+}
+
 # leaves grow by this much on top of the thinning compensation: the garden's shrubs are clipped,
 # fuller specimens than the open scan
 BOOST = {"searsia_a": 1.45, "searsia_b": 1.45, "searsia_c": 1.45, "searsia_d": 1.45}
@@ -527,6 +535,98 @@ def build(tid):
     print(f"{tid}: height {height:.2f} m; " + "; ".join(stats), flush=True)
 
 
+def build_cover(cid):
+    """Ground cover: the scan's clumps as real geometry, with the separate alpha folded into the colour."""
+    asset, names = COVER[cid]
+    g = Gltf(asset)
+    out_dir = os.path.join(OUT, cid)
+    os.makedirs(out_dir, exist_ok=True)
+    blobs, accessors, views = [], [], []
+    offset = 0
+
+    def add(arr, comp, typ, target=None, minmax=False):
+        nonlocal offset
+        b = np.ascontiguousarray(arr).tobytes()
+        pad = (-len(b)) % 4
+        views.append({"buffer": 0, "byteOffset": offset, "byteLength": len(b), **({"target": target} if target else {})})
+        blobs.append(b + b"\0" * pad)
+        offset += len(b) + pad
+        a = {"bufferView": len(views) - 1, "componentType": comp, "count": int(arr.shape[0]), "type": typ}
+        if minmax:
+            a["min"] = [float(x) for x in arr.min(0)]
+            a["max"] = [float(x) for x in arr.max(0)]
+        accessors.append(a)
+        return len(accessors) - 1
+
+    mi = None
+    nodes, meshes, variants = [], [], []
+    for name in names:
+        nd = next(n for n in g.j["nodes"] if n.get("name") == name)
+        M = node_matrix(nd)
+        prims = []
+        for p in g.j["meshes"][nd["mesh"]]["primitives"]:
+            mi = p["material"]
+            P = g.acc(p["attributes"]["POSITION"]).astype(np.float64) @ M[:3, :3].T + M[:3, 3]
+            N = g.acc(p["attributes"]["NORMAL"]).astype(np.float64) @ M[:3, :3].T
+            N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+            UV = g.acc(p["attributes"]["TEXCOORD_0"]).astype(np.float32)
+            I = g.acc(p["indices"]).astype(np.uint32).ravel()
+            prims.append([P, N, UV, I])
+        allP = np.concatenate([q[0] for q in prims])
+        base = np.array([(allP[:, 0].min() + allP[:, 0].max()) / 2, allP[:, 1].min(), (allP[:, 2].min() + allP[:, 2].max()) / 2])
+        out_prims = []
+        for P, N, UV, I in prims:
+            P = (P - base).astype(np.float32)
+            out_prims.append(
+                {
+                    "attributes": {
+                        "POSITION": add(P, 5126, "VEC3", 34962, True),
+                        "NORMAL": add(N.astype(np.float32), 5126, "VEC3", 34962),
+                        "TEXCOORD_0": add(UV, 5126, "VEC2", 34962),
+                    },
+                    "indices": add(I, 5125, "SCALAR", 34963),
+                    "material": 0,
+                }
+            )
+        q = allP - base
+        variants.append({"height": float(q[:, 1].max()), "radius": float(np.linalg.norm(q[:, [0, 2]], axis=1).max())})
+        meshes.append({"name": f"v{len(nodes)}", "primitives": out_prims})
+        nodes.append({"name": f"v{len(nodes)}", "mesh": len(meshes) - 1})
+    # colour + the scan's separate alpha
+    name = g.j["materials"][mi]["name"]
+    alphas = sorted(f for f in os.listdir(os.path.join(g.dir, "textures")) if "alpha" in f)
+    rgb = Image.open(g.image_path(mi, "base")).convert("RGB")
+    rgb.putalpha(Image.open(os.path.join(g.dir, "textures", alphas[0])).convert("L").resize(rgb.size))
+    rgb.save(os.path.join(out_dir, f"{name}_color.png"))
+    blob = b"".join(blobs)
+    open(os.path.join(out_dir, f"{cid}.bin"), "wb").write(blob)
+    gl = {
+        "asset": {"version": "2.0", "generator": "VelaBuilt build_trees.py"},
+        "scene": 0,
+        "scenes": [{"nodes": list(range(len(nodes)))}],
+        "nodes": nodes,
+        "meshes": meshes,
+        "materials": [
+            {
+                "name": name,
+                "doubleSided": True,
+                "alphaMode": "MASK",
+                "alphaCutoff": 0.5,
+                "pbrMetallicRoughness": {"baseColorTexture": {"index": 0}, "metallicFactor": 0.0, "roughnessFactor": 0.8},
+            }
+        ],
+        "textures": [{"source": 0}],
+        "images": [{"uri": f"{name}_color.png"}],
+        "accessors": accessors,
+        "bufferViews": views,
+        "buffers": [{"uri": f"{cid}.bin", "byteLength": len(blob)}],
+        "extras": {"kind": "cover", "variants": variants, "source": asset},
+    }
+    json.dump(gl, open(os.path.join(out_dir, f"{cid}.gltf"), "w"))
+    tris = sum(accessors[pr["indices"]]["count"] // 3 for m in meshes for pr in m["primitives"])
+    print(f"{cid}: {len(nodes)} variants, {tris} triangles, heights " + ", ".join(f"{v['height']:.2f}" for v in variants), flush=True)
+
+
 if __name__ == "__main__":
-    for tid in sys.argv[1:] or list(SPECIES):
-        build(tid)
+    for tid in sys.argv[1:] or [*SPECIES, *COVER]:
+        build_cover(tid) if tid in COVER else build(tid)

@@ -329,6 +329,28 @@
   ],
   "bytes": 1805852
  },
+ "mulch": {
+  "meters": [
+   2.35,
+   2.35
+  ],
+  "maps": [
+   "color",
+   "normal",
+   "arm"
+  ],
+  "sizes": [
+   512,
+   256
+  ],
+  "note": "mulched bed soil",
+  "mean": [
+   0.0433,
+   0.0224,
+   0.0082
+  ],
+  "bytes": 301514
+ },
  "oak_floor": {
   "meters": [
    1.7,

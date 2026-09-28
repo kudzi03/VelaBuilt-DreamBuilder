@@ -137,8 +137,9 @@ lib/            spec (the house), steel frame, options + sample pricing, estimat
                 lead builder/scoring, store (zustand), analytics, quality tiers, units
 three/          the 3D scene — stage, atmosphere (sky, IBL, sun, fog), camera rig and flight planner, house,
                 roof, kitchen, garden, landscape, solar, steel, hvac, materials,
-                impostors, lamps, interior probe, shader patch
-public/assets/  CC0 skies, texture sets, props (GLB) and plant atlases, built by scripts/assets
+                plant field (3D trees + impostor LODs), planting beds, lamps, interior probe,
+                shader patch
+public/assets/  CC0 skies, texture sets, props (GLB), 3D trees and plant atlases, built by scripts/assets
 scripts/        asset pipeline, QA screenshots, interaction and accessibility checks,
                 share image, poster and industry stills
 ```
@@ -149,8 +150,10 @@ Key ideas:
   roofer), panel slots (for solar), members (for steel), rooms and duct runs (for HVAC)
   and the kitchen all derive from it, so every number shown comes from the model.
 - **Real materials, honest provenance.** Architecture and joinery are modelled in code from
-  the spec; surfaces are CC0 PBR scans at true scale, props are CC0 models, plants are CC0
-  scans baked to impostors. Every source and licence is in `ASSET_SOURCES.md`, generated
+  the spec; surfaces are CC0 PBR scans at true scale, props are CC0 models. Plants are CC0
+  scans too: near the camera, real 3D trees (the scan's trunk and limbs, one textured card per
+  leaf, sprig cards for the fir); further out, the same scans baked to impostors; the level of
+  detail is chosen per plant every frame. Every source and licence is in `ASSET_SOURCES.md`, generated
   from `scripts/assets/sources.json`. What the arrival shot needs loads behind the loader;
   scenario layers follow after the reveal.
 - **One shader patch** (`three/shared.ts`) adds section cuts, before/after wipes and
@@ -212,6 +215,8 @@ Asset pipeline (sources are downloaded to `.cache/`, never committed):
 python3 scripts/assets/fetch.py           # CC0 skies, textures, models, plants + credits
 python3 scripts/assets/build_textures.py  # PBR sets → public/assets/tex (Pillow + NumPy)
 node scripts/assets/build_models.mjs      # props → meshopt GLB (gltf-transform)
+python3 scripts/assets/build_trees.py     # 3D trees: leaf/sprig cards + bark, ground cover (NumPy, SciPy)
+node scripts/assets/build_trees.mjs       # → public/assets/trees: meshopt GLB, WebP, cards.bin
 python3 scripts/assets/sources_md.py      # regenerate ASSET_SOURCES.md
 # skies and plant impostors use Blender as a Python module: build_env.py, bake_impostors.py, pack_impostors.py
 ```
